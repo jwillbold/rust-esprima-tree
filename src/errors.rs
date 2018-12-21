@@ -1,41 +1,26 @@
-// pub mod jsast {
-//     #[derive(Debug)]
-//     pub struct ParsingError {
-//         kind: ParsingErrorKind
-//     }
+// check_se_de(Expr::Conditional(ConditionalExpr{test: Box::new(Expr::This),
+//                                       alternate: Box::new(Expr::This),
+//                                       consequent: Box::new(Expr::This)}),
+//             json!({"type": "ConditionalExpression",
+//                     "test": {"type": "ThisExpression"},
+//                     "alternate": {"type": "ThisExpression"},
+//                     "consequent": {"type": "ThisExpression"}}));
 //
-//     #[derive(Debug)]
-//     pub enum ParsingErrorKind {
-//         UnknownType,
-//         UnexpectedDataType,
-//         ImplementationMissing,
-//     }
+// check_se_de(Expr::Logical(ConditionalExpr{operator: LogicalOp::And,
+//                                       left: Box::new(Expr::This),
+//                                       right: Box::new(Expr::This)}),
+//             json!({"type": "LogicalExpression",
+//                     "operator": "&&",
+//                     "left": {"type": "ThisExpression"},
+//                     "right": {"type": "ThisExpression"}}));
 //
-//     impl ParsingError {
-//         pub fn new(kind: ParsingErrorKind) -> Self {
-//             ParsingError {
-//                 kind
-//             }
-//         }
-//     }
-//
-//
-//     #[derive(Debug)]
-//     pub struct SerilizationError {
-//         kind: SerilizationErrorKind,
-//     }
-//
-//     impl SerilizationError {
-//         pub fn new(kind: SerilizationErrorKind) -> Self {
-//             SerilizationError {
-//                 kind
-//             }
-//         }
-//     }
-//
-//     #[derive(Debug)]
-//     pub enum SerilizationErrorKind {
-//         ImplementationMissing,
-//     }
-//
-// }
+// check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This),
+//                               arguments: vec![]}),
+//             json!({"type": "NewExpression",
+//                     "callee": {"type": "ThisExpression"},
+//                     "arguments": []}));
+//                     check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This),
+//                                                   arguments: vec![]}),
+//                                 json!({"type": "NewExpression",
+//                                         "callee": {"type": "ThisExpression"},
+//                                         "arguments": []}));

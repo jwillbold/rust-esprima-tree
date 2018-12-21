@@ -78,9 +78,12 @@ pub mod jsast {
     // }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
     enum BlockStatementOrExpression {
+        #[serde(rename="BlockStatement")]
         Block(BlockStmt),
-        // Expression(Expr) // TODO: Expr
+        #[serde(rename="Expression")]
+        Expr(Box<Expr>)
     }
 
     // interface Function <: Node {
@@ -139,7 +142,7 @@ pub mod jsast {
         #[serde(rename="ForInStatement")]
         ForIn(ForInStmt),
         #[serde(rename="ForOfStatement")]
-        ForOf(ForOfStatement),
+        ForOf(ForOfStmt),
         #[serde(rename="LetStatement")]
         Let(LetStmt),
         #[serde(rename="DebuggerStatement")]
@@ -158,18 +161,23 @@ pub mod jsast {
     #[test]
     fn test_statement_se_de() {
         check_se_de(Stmt::Empty, json!({"type": "EmptyStatement"}));
+
         check_se_de(Stmt::Block(BlockStmt{body:vec![]}),
                     json!({"type": "BlockStatement", "body": []}));
-        check_se_de(Stmt::If(IfStmt{// test: Expr(),
+
+        check_se_de(Stmt::If(IfStmt{test: Expr::This,
                                     consequent: Box::new(Stmt::Empty),
                                     alternate: Some(Box::new(Stmt::Empty))}),
                     json!({"type": "IfStatement",
+                            "test": {"type": "ThisExpression"},
                             "consequent": {"type": "EmptyStatement"},
                             "alternate": {"type": "EmptyStatement"}}));
-        check_se_de(Stmt::If(IfStmt{// test: Expr(),
+
+        check_se_de(Stmt::If(IfStmt{test: Expr::This,
                                     consequent: Box::new(Stmt::Empty),
                                     alternate: None}),
                     json!({"type": "IfStatement",
+                            "test": {"type": "ThisExpression"},
                             "consequent": {"type": "EmptyStatement"},
                             "alternate": serde_json::Value::Null}));
         check_se_de(Stmt::Labled(LabledStmt{label: "lbl".to_string(),
@@ -179,22 +187,26 @@ pub mod jsast {
                             "body": {"type": "EmptyStatement"}}));
         check_se_de(Stmt::Break(BreakStmt{label: None}),
                     json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
+
         check_se_de(Stmt::Continue(ContinueStmt{label: Some("lbl".to_string())}),
                     json!({"type": "ContinueStatement", "label": "lbl"}));
 
-        // assert_eq!(serde_json::to_value(&Stmt::With(BreakStmt{label: None})).unwrap(),
-        //             json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
+        check_se_de(Stmt::With(WithStmt{object: Expr::This, body: Expr::This}),
+                    json!({"type": "WithStatement",
+                            "object": {"type": "ThisExpression"},
+                            "body": {"type": "ThisExpression"}}));
 
-        check_se_de(Stmt::Switch(SwitchStmt{cases: vec![], lexical: false}),
-                    json!({"type": "SwitchStatement", "cases": [], "lexical": false}));
+        check_se_de(Stmt::Switch(SwitchStmt{discriminant: Expr::This, cases: vec![], lexical: false}),
+                    json!({"type": "SwitchStatement",
+                            "discriminant": {"type": "ThisExpression"},
+                            "cases": [],
+                            "lexical": false}));
 
-        // assert_eq!(serde_json::to_value(&Stmt::Switch(SwitchStmt{cases: vec![], lexical: false})).unwrap(),
-        //            json!({"type": "ReturnStatement", "cases": [],
-        //                   "lexical": false}));
+        check_se_de(Stmt::Return(ReturnStmt{argument: None}),
+                    json!({"type": "ReturnStatement", "argument": serde_json::Value::Null}));
 
-        // assert_eq!(serde_json::to_value(&Stmt::Throw(ThrowStmt{cases: vec![], lexical: false})).unwrap(),
-        //            json!({"type": "ReturnStatement", "cases": [],
-        //                   "lexical": false}));
+        check_se_de(Stmt::Throw(ThrowStmt{argument: Expr::This}),
+                    json!({"type": "ThrowStatement", "argument": Expr::This}));
 
         check_se_de(Stmt::Try(TryStmt{block: BlockStmt{body: vec![]},
                                       handler: None,
@@ -206,24 +218,41 @@ pub mod jsast {
                           "guardedHandlers": [],
                           "finalizer": {"body": []}}));
 
-        check_se_de(Stmt::While(WhileStmt{body: Box::new(Stmt::Empty)}),
-                    json!({"type": "WhileStatement", "body": {"type": "EmptyStatement"}}));
+        check_se_de(Stmt::While(WhileStmt{test: Expr::This, body: Box::new(Stmt::Empty)}),
+                    json!({"type": "WhileStatement",
+                            "test": {"type": "ThisExpression"},
+                            "body": {"type": "EmptyStatement"}}));
+        check_se_de(Stmt::DoWhile(DoWhileStmt{body: Box::new(Stmt::Empty), test: Expr::This}),
+                    json!({"type": "DoWhileStatement",
+                            "body": {"type": "EmptyStatement"},
+                            "test": {"type": "ThisExpression"}}));
 
-        check_se_de(Stmt::For(ForStmt{init: None, body: Box::new(Stmt::Empty)}),
+        check_se_de(Stmt::For(ForStmt{init: None, test: None, update: None, body: Box::new(Stmt::Empty)}),
                     json!({"type": "ForStatement",
                            "init": serde_json::Value::Null,
+                           "test": serde_json::Value::Null,
+                           "update": serde_json::Value::Null,
                            "body": {"type": "EmptyStatement"}}));
 
-        // assert_eq!(serde_json::to_value(&Stmt::ForIn(ForInStmt{left: ForStmtInit::Decl(VariableDeclaration{declarations: vec![],
-        //                                                                                                    kind: VariableDeclarationKind::Let}),
-        //                                                        body: Box::new(Stmt::Empty),
-        //                                                        each: false})).unwrap(),
-        //             json!({"type": "ForInStatement",
-        //                     "left": {"declerations": [], "kind": "let"},
-        //                     "body": {"type": "EmptyStatement"},
-        //                     "each": false}));
+        check_se_de(Stmt::ForIn(ForInStmt{left: ForStmtInit::Decl(VariableDeclaration{
+                                                                    declarations: vec![],
+                                                                    kind: VariableDeclarationKind::Let}),
+                                           right: Expr::This,
+                                           body: Box::new(Stmt::Empty),
+                                           each: false}),
+                    json!({"type": "ForInStatement",
+                            "left": {"declarations": [], "kind": "let"},
+                            "right": {"type": "ThisExpression"},
+                            "body": {"type": "EmptyStatement"},
+                            "each": false}));
 
-        // TODO: ForOfStatement
+        check_se_de(Stmt::ForOf(ForOfStmt{left: ForStmtInit::Expr(Expr::This),
+                                           right: Expr::This,
+                                           body: Box::new(Stmt::Empty)}),
+                    json!({"type": "ForOfStatement",
+                            "left": {"type": "ThisExpression"},
+                            "right": {"type": "ThisExpression"},
+                            "body": {"type": "EmptyStatement"}}));
 
         check_se_de(Stmt::Let(LetStmt{head: vec![], body: Box::new(Stmt::Empty)}),
                     json!({"type": "LetStatement",
@@ -248,7 +277,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct IfStmt {
-        // test: Expr, // TODO: Expr
+        test: Expr,
         consequent: Box<Stmt>,
         alternate: Option<Box<Stmt>>
     }
@@ -289,8 +318,8 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct WithStmt {
-        // object: Expr, //TODO: Expr
-        // body: Expr,
+        object: Expr,
+        body: Expr,
     }
 
     // interface SwitchStatement <: Statement {
@@ -301,7 +330,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct SwitchStmt {
-        // discriminant: Expr, //TODO: Expr
+        discriminant: Expr,
         cases: Vec<SwitchCase>,
         lexical: bool
     }
@@ -312,7 +341,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ReturnStmt {
-        // argument: Option<Expr> //TODO: Expr
+        argument: Option<Expr>
     }
 
     // interface ThrowStatement <: Statement {
@@ -321,7 +350,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ThrowStmt {
-        // argument: Expr, //TODO: Expr
+        argument: Expr
     }
 
     // interface TryStatement <: Statement {
@@ -347,7 +376,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct WhileStmt {
-        // test: Expr, TODO: Expr
+        test: Expr,
         body: Box<Stmt>
     }
 
@@ -359,7 +388,7 @@ pub mod jsast {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct DoWhileStmt {
         body: Box<Stmt>,
-        // test: Expr, // TODO: Expr
+        test: Expr,
     }
 
     // interface ForStatement <: Statement {
@@ -372,8 +401,8 @@ pub mod jsast {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ForStmt {
         init: Option<ForStmtInit>,
-        // test: Option<Expr>, TODO: Expr
-        // update: Option<Expr>, TODO: Expr
+        test: Option<Expr>,
+        update: Option<Expr>,
         body: Box<Stmt>
     }
 
@@ -387,7 +416,7 @@ pub mod jsast {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ForInStmt {
         left: ForStmtInit,
-        // right: Expr, TODO: Expr
+        right: Expr,
         body: Box<Stmt>,
         each: bool
     }
@@ -399,9 +428,9 @@ pub mod jsast {
     //     body: Statement;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ForOfStatement {
+    struct ForOfStmt {
         left: ForStmtInit,
-        // right: Expr, TODO: Expr
+        right: Expr,
         body: Box<Stmt>
     }
 
@@ -409,7 +438,7 @@ pub mod jsast {
     #[serde(untagged)]
     enum ForStmtInit {
         Decl(VariableDeclaration),
-        // Expr(Expr), TODO: Expr
+        Expr(Expr),
     }
 
     // interface LetStatement <: Statement {
@@ -474,17 +503,11 @@ pub mod jsast {
 
     #[test]
     fn test_vardec_se_de() {
-        // assert_eq!(serde_json::to_value(&VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Let}).unwrap(),
-        //           json!({
-        //               "declerations": [],
-        //               "kind": "let"
-        //           }));
+        check_se_de(VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Let},
+                    json!({"declarations": [], "kind": "let"}));
 
-        // assert_eq!(serde_json::to_value(&VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Var}).unwrap(),
-        //             json!({
-        //                 "declerations": [],
-        //                 "kind": "var".to_string()
-        //             }));
+        check_se_de(VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Var},
+                    json!({"declarations": [], "kind": "var".to_string()}));
     }
 
     // interface VariableDeclarator <: Node {
@@ -495,7 +518,7 @@ pub mod jsast {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct VariableDeclarator {
         // id: Pattern, TODO: Pattern
-        // init: Option<Expr>, TODO: Expr
+        init: Option<Expr>
     }
 
     // interface Expression <: Node, Pattern { }
@@ -541,8 +564,22 @@ pub mod jsast {
                     json!({"type": "ArrayExpression", "elements": []}));
         check_se_de(Expr::Object(ObjectExpr{properties: vec![]}),
                     json!({"type": "ObjectExpression", "properties": []}));
-        // TODO
-        // check_se_de(Expr::Function(FunctionExpr{}))
+
+        check_se_de(Expr::Function(FunctionExpr{id: None,
+                                                params: vec![],
+                                                defaults: vec![],
+                                                rest: None,
+                                                body: BlockStatementOrExpression::Block(BlockStmt{body: vec![]}),
+                                                generator: false,
+                                                expression: false}),
+                    json!({"type": "FunctionExpression",
+                            "id": serde_json::Value::Null,
+                            "params": [],
+                            "defaults": [],
+                            "rest": serde_json::Value::Null,
+                            "body": {"type": "BlockStatement", "body": []},
+                            "generator": false,
+                            "expression": false}));
 
         check_se_de(Expr::Sequence(SequenceExpr{expressions: vec![]}),
                     json!({"type": "SeqeunceExpression", "expressions": []}));
@@ -865,7 +902,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct SwitchCase {
-        // test: Option<Expr>
+        test: Option<Expr>,
         consequent: Vec<Stmt>
     }
 
@@ -878,7 +915,7 @@ pub mod jsast {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct CatchClause {
         // param: Pattern, // TODO: Pattern
-        // buard: Option<Expr>, // TODO: Expr
+        buard: Option<Expr>,
         body: BlockStmt
     }
 
@@ -1042,7 +1079,6 @@ pub mod jsast {
     //     "++" | "--"
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    // #[serde(untagged)]
     enum UpdateOp {
         #[serde(rename="++")]
         Inc,
