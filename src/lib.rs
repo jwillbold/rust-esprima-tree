@@ -517,7 +517,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct VariableDeclarator {
-        // id: Pattern, TODO: Pattern
+        id: Pattern,
         init: Option<Expr>
     }
 
@@ -854,6 +854,7 @@ pub mod jsast {
         Set
     }
 
+
     // interface Pattern <: Node { }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
@@ -914,7 +915,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct CatchClause {
-        // param: Pattern, // TODO: Pattern
+        param: Pattern,
         buard: Option<Expr>,
         body: BlockStmt
     }
