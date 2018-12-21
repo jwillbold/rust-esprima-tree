@@ -95,7 +95,7 @@ pub mod jsast {
     struct Function {
         id: Option<Identifier>,
         params: Vec<Pattern>,
-        defaults: Vec<Expression>,
+        defaults: Vec<Expr>,
         rest: Option<Identifier>,
         body: BlockStatementOrExpression,
         generator: bool,
@@ -110,7 +110,7 @@ pub mod jsast {
         Empty,
         #[serde(rename="BlockStatement")]
         Block(BlockStmt),
-        // Expression(Expression),
+        // Expression(Expr),
         // Decleration(Decleration),
         #[serde(rename="IfStatement")]
         If(IfStmt),
@@ -498,39 +498,113 @@ pub mod jsast {
         // init: Option<Expr>, TODO: Expr
     }
 
-    // TODO: Remove
-    enum Expression {
-
-    }
-
     // interface Expression <: Node, Pattern { }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Expr {
         #[serde(rename="ThisExpression")]
         This,
-        // #[serde(rename="ArrayExpression")]
-        // Array(ArrayExpr),
+        #[serde(rename="ArrayExpression")]
+        Array(ArrayExpr),
         #[serde(rename="ObjectExpression")]
         Object(ObjectExpr),
-        // Property(PropertyExpression),
-        // Function(FunctionExpression),
-        // Arrow(ArrowExpression),
-        // Sequence(Vec<Expression>),
-        // Unary(UnaryExpression),
-        // Binary(BinaryExpression),
-        // Assignment(AssignmentExpression),
-        // Update(UpdateExpression),
-        // Logical(LogicalExpression),
-        // Conditional(ConditionalExpression),
-        // New(NewExpression),
-        // Call(CallExpression),
-        // Member(MemberExpression)
+        #[serde(rename="FunctionExpression")]
+        Function(FunctionExpr),
+        #[serde(rename="ArrowExpression")]
+        Arrow(ArrowExpr),
+        #[serde(rename="SeqeunceExpression")]
+        Sequence(SequenceExpr),
+        #[serde(rename="UnaryExpression")]
+        Unary(UnaryExpr),
+        #[serde(rename="BinaryExpression")]
+        Binary(BinaryExpr),
+        #[serde(rename="AssignmentExpression")]
+        Assignment(AssignmentExpr),
+        #[serde(rename="UpdateExpression")]
+        Update(UpdateExpr),
+        #[serde(rename="LogicalExpression")]
+        Logical(LogicalExpr),
+        #[serde(rename="ConditionalExpression")]
+        Conditional(ConditionalExpr),
+        #[serde(rename="NewExpression")]
+        New(NewExpr),
+        #[serde(rename="CallExpression")]
+        Call(CallExpr),
+        #[serde(rename="MemberExpression")]
+        Member(MemberExpr)
     }
 
     #[test]
     fn test_expr_se_de() {
         check_se_de(Expr::This, json!({"type": "ThisExpression"}));
+        check_se_de(Expr::Array(ArrayExpr{elements: vec![]}),
+                    json!({"type": "ArrayExpression", "elements": []}));
+        check_se_de(Expr::Object(ObjectExpr{properties: vec![]}),
+                    json!({"type": "ObjectExpression", "properties": []}));
+        // TODO
+        // check_se_de(Expr::Function(FunctionExpr{}))
+
+        check_se_de(Expr::Sequence(SequenceExpr{expressions: vec![]}),
+                    json!({"type": "SeqeunceExpression", "expressions": []}));
+        check_se_de(Expr::Unary(UnaryExpr{operator: UnaryOp::Plus,
+                                          prefix: false,
+                                          argument: Box::new(Expr::This)}),
+                    json!({"type": "UnaryExpression",
+                            "operator": "+",
+                            "prefix": false,
+                            "argument": {"type": "ThisExpression"}}));
+        check_se_de(Expr::Binary(BinaryExpr{operator: BinaryOp::Eq,
+                                            left: Box::new(Expr::This),
+                                            right: Box::new(Expr::This)}),
+                    json!({"type": "BinaryExpression",
+                            "operator": "==",
+                            "left": {"type": "ThisExpression"},
+                            "right": {"type": "ThisExpression"}}));
+        check_se_de(Expr::Assignment(AssignmentExpr{operator: AssignmentOp::Assign,
+                                            left: Pattern::Array(ArrayPattern{elements: vec![]}),
+                                            right: Box::new(Expr::This)}),
+                    json!({"type": "AssignmentExpression",
+                            "operator": "=",
+                            "left": {"type": "ArrayPattern", "elements": []},
+                            "right": {"type": "ThisExpression"}}));
+        check_se_de(Expr::Update(UpdateExpr{operator: UpdateOp::Inc,
+                                            argument: Box::new(Expr::This),
+                                            prefix: false}),
+                    json!({"type": "UpdateExpression",
+                            "operator": "++",
+                            "argument": {"type": "ThisExpression"},
+                            "prefix": false}));
+        check_se_de(Expr::Logical(LogicalExpr{operator: LogicalOp::And,
+                                              left: Box::new(Expr::This),
+                                              right: Box::new(Expr::This)}),
+                    json!({"type": "LogicalExpression",
+                            "operator": "&&",
+                            "left": {"type": "ThisExpression"},
+                            "right": {"type": "ThisExpression"}}));
+        check_se_de(Expr::Conditional(ConditionalExpr{test: Box::new(Expr::This),
+                                              alternate: Box::new(Expr::This),
+                                              consequent: Box::new(Expr::This)}),
+                    json!({"type": "ConditionalExpression",
+                            "test": {"type": "ThisExpression"},
+                            "alternate": {"type": "ThisExpression"},
+                            "consequent": {"type": "ThisExpression"}}));
+        check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This),
+                                      arguments: vec![]}),
+                    json!({"type": "NewExpression",
+                            "callee": {"type": "ThisExpression"},
+                            "arguments": []}));
+        check_se_de(Expr::Call(CallExpr{callee: Box::new(Expr::This),
+                                       arguments: vec![]}),
+                    json!({"type": "CallExpression",
+                            "callee": {"type": "ThisExpression"},
+                            "arguments": []}));
+        check_se_de(Expr::Member(MemberExpr{object: Box::new(Expr::This),
+                                            property: MemberExprProp::Ident("id".to_string()),
+                                            computed: true}),
+                    json!({"type": "MemberExpression",
+                            "object": {"type": "ThisExpression"},
+                            "property": "id",
+                            "computed": true}));
     }
 
     // interface ArrayExpression <: Expression {
@@ -539,7 +613,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ArrayExpr {
-        elements: Option<Vec<Expr>>
+        elements: Vec<Option<Expr>>
     }
 
     // interface ObjectExpression <: Expression {
@@ -548,24 +622,7 @@ pub mod jsast {
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ObjectExpr {
-        // properties: Vec<Property>
-    }
-
-    // interface Property <: Node {
-    //     type: "Property";
-    //     key: Literal | Identifier;
-    //     value: Expression;
-    //     kind: "init" | "get" | "set";
-    // }
-    struct PropertyExpression {
-        // value: Expression
-        kind: PropertyExpressionKind
-    }
-
-    enum PropertyExpressionKind {
-        Init,
-        Get,
-        Set
+        properties: Vec<Property>
     }
 
     // interface FunctionExpression <: Function, Expression {
@@ -578,8 +635,15 @@ pub mod jsast {
     //     generator: boolean;
     //     expression: boolean;
     // }
-    struct FunctionExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct FunctionExpr {
+        id: Option<Identifier>,
+        params: Vec<Pattern>,
+        defaults: Vec<Expr>,
+        rest: Option<Identifier>,
+        body: BlockStatementOrExpression,
+        generator: bool,
+        expression: bool
     }
 
     // interface ArrowExpression <: Function, Expression {
@@ -591,15 +655,16 @@ pub mod jsast {
     //     generator: boolean;
     //     expression: boolean;
     // }
-    struct ArrowExpression {
-
-    }
+    type ArrowExpr = FunctionExpr;
 
     // interface SequenceExpression <: Expression {
     //     type: "SequenceExpression";
     //     expressions: [ Expression ];
     // }
-    // type SequenceExpression = Vec<Expression>;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct SequenceExpr {
+        expressions: Vec<Expr>
+    }
 
     // interface UnaryExpression <: Expression {
     //     type: "UnaryExpression";
@@ -607,10 +672,11 @@ pub mod jsast {
     //     prefix: boolean;
     //     argument: Expression;
     // }
-    struct UnaryExpression {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct UnaryExpr {
         operator: UnaryOp,
         prefix: bool,
-        // argument: Expression,
+        argument: Box<Expr>,
     }
 
     // interface BinaryExpression <: Expression {
@@ -619,8 +685,11 @@ pub mod jsast {
     //     left: Expression;
     //     right: Expression;
     // }
-    struct BinaryExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct BinaryExpr {
+        operator: BinaryOp,
+        left: Box<Expr>,
+        right: Box<Expr>
     }
 
     // interface AssignmentExpression <: Expression {
@@ -629,8 +698,11 @@ pub mod jsast {
     //     left: Pattern;
     //     right: Expression;
     // }
-    struct AssignmentExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct AssignmentExpr {
+        operator: AssignmentOp,
+        left: Pattern,
+        right: Box<Expr>
     }
 
     // interface UpdateExpression <: Expression {
@@ -639,8 +711,11 @@ pub mod jsast {
     //     argument: Expression;
     //     prefix: boolean;
     // }
-    struct UpdateExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct UpdateExpr {
+        operator: UpdateOp,
+        argument: Box<Expr>,
+        prefix: bool
     }
 
     // interface LogicalExpression <: Expression {
@@ -649,8 +724,11 @@ pub mod jsast {
     //     left: Expression;
     //     right: Expression;
     // }
-    struct LogicalExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct LogicalExpr {
+        operator: LogicalOp,
+        left: Box<Expr>,
+        right: Box<Expr>
     }
 
     // interface ConditionalExpression <: Expression {
@@ -659,8 +737,11 @@ pub mod jsast {
     //     alternate: Expression;
     //     consequent: Expression;
     // }
-    struct ConditionalExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ConditionalExpr {
+        test: Box<Expr>,
+        alternate: Box<Expr>,
+        consequent: Box<Expr>,
     }
 
     // interface NewExpression <: Expression {
@@ -668,8 +749,10 @@ pub mod jsast {
     //     callee: Expression;
     //     arguments: [ Expression ];
     // }
-    struct NewExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct NewExpr {
+        callee: Box<Expr>,
+        arguments: Vec<Expr>
     }
 
     // interface CallExpression <: Expression {
@@ -677,8 +760,10 @@ pub mod jsast {
     //     callee: Expression;
     //     arguments: [ Expression ];
     // }
-    struct CallExpression {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct CallExpr {
+        callee: Box<Expr>,
+        arguments: Vec<Expr>
     }
 
     // interface MemberExpression <: Expression {
@@ -687,14 +772,58 @@ pub mod jsast {
     //     property: Identifier | Expression;
     //     computed: boolean;
     // }
-    struct MemberExpression {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct MemberExpr {
+        object: Box<Expr>,
+        property: MemberExprProp,
+        computed: bool
+    }
 
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum MemberExprProp {
+        Ident(Identifier),
+        Expr(Box<Expr>),
     }
 
 
+
+    // interface Property <: Node {
+    //     type: "Property";
+    //     key: Literal | Identifier;
+    //     value: Expression;
+    //     kind: "init" | "get" | "set";
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Property {
+        key: PropertyKey,
+        value: Expr,
+        kind: PropertyKind
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum PropertyKey {
+        Literal(Literal),
+        Identifier(Identifier)
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum PropertyKind {
+        #[serde(rename="init")]
+        Init,
+        #[serde(rename="get")]
+        Get,
+        #[serde(rename="set")]
+        Set
+    }
+
     // interface Pattern <: Node { }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
     enum Pattern {
+        #[serde(rename="ObjectPattern")]
         Object(ObjectPattern),
+        #[serde(rename="ArrayPattern")]
         Array(ArrayPattern)
     }
 
@@ -702,17 +831,22 @@ pub mod jsast {
     //     type: "ObjectPattern";
     //     properties: [ { key: Literal | Identifier, value: Pattern } ];
     // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ObjectPattern {
-        // properties: Vec<(, Pattern)>
+        properties: Vec<ObjectPatternProp>
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ObjectPatternProp {
+        key: PropertyKey,
+        value: Pattern
     }
 
     // interface ArrayPattern <: Pattern {
     //     type: "ArrayPattern";
     //     elements: [ Pattern | null ];
     // }
-    struct ArrayPattern {
-
-    }
+    type ArrayPattern = ArrayExpr;
 
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -749,8 +883,11 @@ pub mod jsast {
     }
 
 
-    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    // #[serde(tag="type")]
+    // interface Literal <: Node, Expression {
+    //     type: "Literal";
+    //     value: string | boolean | null | number | RegExp;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum Literal {
         Str(String),
         Bool(bool),
@@ -761,32 +898,29 @@ pub mod jsast {
     }
 
 
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(untagged)]
-    enum Operator {
-        Unary(UnaryOp),
-        // Bianry(BinaryOperator),
-        Logical(LogicalOp),
-        // Assignment(AssignmentOperator),
-        Update(UpdateOp)
-    }
+    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    // // #[serde(untagged)]
+    // #[serde(tag="operator")]
+    // enum Operator {
+    //     Unary(UnaryOp),
+    //     // Bianry(BinaryOperator),
+    //     Logical(LogicalOp),
+    //     // Assignment(AssignmentOperator),
+    //     Update(UpdateOp)
+    // }
 
-    #[test]
-    fn test_operator_se_de() {
-        assert_eq!(serde_json::to_value(&Operator::Unary(UnaryOp::Plus)).unwrap(),
-                    json!({"operator": "+"}));
-        assert_eq!(serde_json::to_value(&Operator::Logical(LogicalOp::Or)).unwrap(),
-                    json!({"operator": "||"}));
-        assert_eq!(serde_json::to_value(&Operator::Update(UpdateOp::Inc)).unwrap(),
-                    json!({"operator": "++"}));
-    }
+    // #[test]
+    // fn test_operator_se_de() {
+    //     check_se_de(Operator::Unary(UnaryOp::Plus), json!({"operator": "+"}));
+    //     check_se_de(Operator::Logical(LogicalOp::Or), json!({"operator": "||"}));
+    //     check_se_de(Operator::Update(UpdateOp::Inc), json!({"operator": "++"}));
+    // }
 
 
     // enum UnaryOperator {
     //     "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="operator")]
     enum UnaryOp {
         #[serde(rename="-")]
         Minus,
@@ -812,15 +946,58 @@ pub mod jsast {
     //          | "|" | "^" | "&" | "in"
     //          | "instanceof" | ".."
     // }
-    enum BinaryOperator {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum BinaryOp {
+        #[serde(rename="==")]
+        Eq,
+        #[serde(rename="!=")]
+        Neq,
+        #[serde(rename="===")]
+        Seq,
+        #[serde(rename="!===")]
+        Sneq,
+        #[serde(rename="<")]
+        Less,
+        #[serde(rename="<=")]
+        LessOrEq,
+        #[serde(rename=">")]
+        Greater,
+        #[serde(rename=">=")]
+        GreaterOrEq,
+        #[serde(rename="<<")]
+        LShift,
+        #[serde(rename=">>")]
+        RShift,
+        #[serde(rename=">>>")]
+        URshift,
+        #[serde(rename="+")]
+        Plus,
+        #[serde(rename="-")]
+        Minus,
+        #[serde(rename="*")]
+        Mul,
+        #[serde(rename="/")]
+        Div,
+        #[serde(rename="%")]
+        Mod,
+        #[serde(rename="|")]
+        Or,
+        #[serde(rename="^")]
+        Xor,
+        #[serde(rename="&")]
+        And,
+        #[serde(rename="in")]
+        In,
+        #[serde(rename="instanceof")]
+        Instanceof,
+        // #[serde(rename="..")]
+        // DotDot, Thisis E4x specific
     }
 
     // enum LogicalOperator {
     //     "||" | "&&"
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="operator")]
     enum LogicalOp {
         #[serde(rename="||")]
         Or,
@@ -833,15 +1010,39 @@ pub mod jsast {
     //         | "<<=" | ">>=" | ">>>="
     //         | "|=" | "^=" | "&="
     // }
-    enum AssignmentOperator {
-
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum AssignmentOp {
+        #[serde(rename="=")]
+        Assign,
+        #[serde(rename="+=")]
+        AddAssign,
+        #[serde(rename="-=")]
+        SubAssign,
+        #[serde(rename="*=")]
+        MulAssign,
+        #[serde(rename="/=")]
+        DivAssign,
+        #[serde(rename="%=")]
+        ModAssign,
+        #[serde(rename="<<=")]
+        LShiftAssign,
+        #[serde(rename=">>=")]
+        RShiftAssign,
+        #[serde(rename=">>>=")]
+        URShiftAssign,
+        #[serde(rename="|=")]
+        OrAssign,
+        #[serde(rename="^=")]
+        XorAssign,
+        #[serde(rename="&=")]
+        AndAssign,
     }
 
     // enum UpdateOperator {
     //     "++" | "--"
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="operator")]
+    // #[serde(untagged)]
     enum UpdateOp {
         #[serde(rename="++")]
         Inc,
