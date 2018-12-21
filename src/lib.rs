@@ -9,10 +9,7 @@ extern crate serde_test;
 pub mod jsast {
 
     #![allow(dead_code)]
-
-    use serde::ser::{Serialize, Serializer, SerializeStruct};
-
-
+    
     type Identifier = String;
     type Label = String;
 
@@ -26,56 +23,13 @@ pub mod jsast {
     //     type: "Program";
     //     body: [ Statement ];
     // }
-    #[derive(Deserialize, PartialEq, Debug)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Program {
-        // type: &'static str = "Program",
         // type: &'static str = "Program",
         body: String
         // body: Vec<Statement>,
     }
 
-    impl Serialize for Program {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where  S: Serializer,
-        {
-            let mut state = serializer.serialize_struct("Program", 1)?;
-            // state.serialize_field("type", "Program")?;
-            state.serialize_field("body", &self.body)?;
-            state.end()
-        }
-    }
-
-    // #[test]
-    // fn test_program_parse_and_serialize() {
-    //     let json = serde_json::json!({
-    //         "type": "Program",
-    //         "body": "[]",
-    //     });
-    //
-    //     println!("json: {}", json);
-    //
-    //     let prog = Program {
-    //         body: "[]".to_string()
-    //     };
-    //
-    //
-    //     let json_prog = serde_json::to_string(&prog).unwrap();
-    //
-    //     println!("json_prog: {}", json_prog);
-    //
-    //     let prog_json: Program = serde_json::from_str(json_prog.as_str()).unwrap();
-    //
-    //     assert_eq!(prog_json, prog);
-    //
-    //     // check_parsing::<Program>(json);
-    //
-    //     assert_tokens(&prog, &[
-    //         Token::Struct { name: "Program", len: 1},
-    //         Token::String("body"),
-    //         Token::Str("[]"),
-    //         Token::StructEnd
-    //     ]);
-    // }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
@@ -824,7 +778,6 @@ pub mod jsast {
     }
 
 
-
     // interface Property <: Node {
     //     type: "Property";
     //     key: Literal | Identifier;
@@ -887,6 +840,7 @@ pub mod jsast {
     type ArrayPattern = ArrayExpr;
 
 
+
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Clause {
@@ -934,26 +888,6 @@ pub mod jsast {
         Num(f64),
         Regex(String),
     }
-
-
-    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    // // #[serde(untagged)]
-    // #[serde(tag="operator")]
-    // enum Operator {
-    //     Unary(UnaryOp),
-    //     // Bianry(BinaryOperator),
-    //     Logical(LogicalOp),
-    //     // Assignment(AssignmentOperator),
-    //     Update(UpdateOp)
-    // }
-
-    // #[test]
-    // fn test_operator_se_de() {
-    //     check_se_de(Operator::Unary(UnaryOp::Plus), json!({"operator": "+"}));
-    //     check_se_de(Operator::Logical(LogicalOp::Or), json!({"operator": "||"}));
-    //     check_se_de(Operator::Update(UpdateOp::Inc), json!({"operator": "++"}));
-    // }
-
 
     // enum UnaryOperator {
     //     "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
