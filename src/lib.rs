@@ -1,8 +1,5 @@
-mod errors;
-
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
@@ -13,13 +10,8 @@ pub mod jsast {
 
     #![allow(dead_code)]
 
-    use serde_test::{Token, assert_tokens};
     use serde::ser::{Serialize, Serializer, SerializeStruct};
 
-    use errors::jsast::ParsingError;
-    use errors::jsast::ParsingErrorKind;
-    use errors::jsast::SerilizationError;
-    use errors::jsast::SerilizationErrorKind;
 
     type Identifier = String;
     type Label = String;
@@ -28,40 +20,13 @@ pub mod jsast {
     //     type: string;
     //     loc: SourceLocation | null;
     // }
-    trait Node: Sized {
-        fn to_json(&self) -> Result<serde_json::Value, SerilizationError>;
-        fn from_json(json: serde_json::Value) -> Result<Self, ParsingError>;
-    }
-
-    // enum Node {
-    //     Program(Program),
-    //     Function(Function),
-    //     Statement(Statement),
-    //     Decleration(Decleration),
-    //     Expression(Expression),
-    //     Pattern(Pattern),
-    //     Clause(Clause),
-    //     Identifier(Identifier),
-    //     Literal(Literal),
-    //     Operator(Operator),
-    // }
-
-    #[cfg(test)]
-    fn check_parsing<T>(json: serde_json::Value) where T: Node {
-        let parsed = T::from_json(json.clone()).unwrap();
-        assert_eq!(parsed.to_json().unwrap(), json);
-    }
 
 
     // interface Program <: Node {
     //     type: "Program";
     //     body: [ Statement ];
     // }
-
-    #[derive(Debug)]
-    #[derive(PartialEq)]
-    #[derive(Deserialize)]
-    // #[derive(Serialize, Deserialize)]
+    #[derive(Deserialize, PartialEq, Debug)]
     struct Program {
         // type: &'static str = "Program",
         // type: &'static str = "Program",
@@ -80,67 +45,42 @@ pub mod jsast {
         }
     }
 
-    #[test]
-    fn test_program_parse_and_serialize() {
-        let json = serde_json::json!({
-            "type": "Program",
-            "body": "[]",
-        });
-
-        println!("json: {}", json);
-
-        let prog = Program {
-            body: "[]".to_string()
-        };
-
-
-        let json_prog = serde_json::to_string(&prog).unwrap();
-
-        println!("json_prog: {}", json_prog);
-
-        let prog_json: Program = serde_json::from_str(json_prog.as_str()).unwrap();
-
-        assert_eq!(prog_json, prog);
-
-        // check_parsing::<Program>(json);
-
-        assert_tokens(&prog, &[
-            Token::Struct { name: "Program", len: 1},
-            Token::String("body"),
-            Token::Str("[]"),
-            Token::StructEnd
-        ]);
-    }
-
-
-    // #[serde(tag = "type")]
-    // #[derive(Serialize, Deserialize)]
-    // enum Expr {
-    //     #[serde(rename = "ThisExpression")]
-    //     This
-    // }
-    //
-    // #[test]
-    // fn test_expr_de_se() {
-    //     let e = Expr::This;
-    //
-    //     println!("Expr::This: {}", serde_json::to_string(&e).unwrap());
-    // }
-
-
     // #[test]
     // fn test_program_parse_and_serialize() {
     //     let json = serde_json::json!({
     //         "type": "Program",
-    //         "body": [],
+    //         "body": "[]",
     //     });
     //
-    //     check_parsing::<Program>(json);
+    //     println!("json: {}", json);
+    //
+    //     let prog = Program {
+    //         body: "[]".to_string()
+    //     };
+    //
+    //
+    //     let json_prog = serde_json::to_string(&prog).unwrap();
+    //
+    //     println!("json_prog: {}", json_prog);
+    //
+    //     let prog_json: Program = serde_json::from_str(json_prog.as_str()).unwrap();
+    //
+    //     assert_eq!(prog_json, prog);
+    //
+    //     // check_parsing::<Program>(json);
+    //
+    //     assert_tokens(&prog, &[
+    //         Token::Struct { name: "Program", len: 1},
+    //         Token::String("body"),
+    //         Token::Str("[]"),
+    //         Token::StructEnd
+    //     ]);
     // }
 
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum BlockStatementOrExpression {
-        // Block(BlockStatement),
-        Expression(Expression)
+        Block(BlockStmt),
+        // Expression(Expr) // TODO: Expr
     }
 
     // interface Function <: Node {
@@ -163,7 +103,7 @@ pub mod jsast {
     }
 
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Stmt {
         #[serde(rename="EmptyStatement")]
@@ -207,44 +147,46 @@ pub mod jsast {
     }
 
     #[cfg(test)]
-    fn check_se<T>(t: T, json: serde_json::Value) where T: serde::Serialize{ // + serde::Deserialize
+    fn check_se_de<T>(t: T, json: serde_json::Value) where for<'de> T: serde::Serialize +
+                                                                       serde::Deserialize<'de> +
+                                                                       std::fmt::Debug +
+                                                                       std::cmp::PartialEq{
         assert_eq!(serde_json::to_value(&t).unwrap(), json);
-        // assert_eq!(t, serde_json::from_value::<T>(json).unwrap());
+        assert_eq!(t, serde_json::from_value::<T>(json).unwrap());
     }
 
     #[test]
     fn test_statement_se_de() {
-        check_se(Stmt::Empty, json!({"type": "EmptyStatement"}));
-        check_se(Stmt::Block(BlockStmt{body:vec![]}),
-                 json!({"type": "BlockStatement", "body": []}));
-        assert_eq!(serde_json::to_value(&Stmt::If(IfStmt{// test: Expr(),
-                                                         consequent: Box::new(Stmt::Empty),
-                                                         alternate: Some(Box::new(Stmt::Empty))})).unwrap(),
+        check_se_de(Stmt::Empty, json!({"type": "EmptyStatement"}));
+        check_se_de(Stmt::Block(BlockStmt{body:vec![]}),
+                    json!({"type": "BlockStatement", "body": []}));
+        check_se_de(Stmt::If(IfStmt{// test: Expr(),
+                                    consequent: Box::new(Stmt::Empty),
+                                    alternate: Some(Box::new(Stmt::Empty))}),
                     json!({"type": "IfStatement",
                             "consequent": {"type": "EmptyStatement"},
                             "alternate": {"type": "EmptyStatement"}}));
-        assert_eq!(serde_json::to_value(&Stmt::If(IfStmt{// test: Expr(),
-                                                         consequent: Box::new(Stmt::Empty),
-                                                         alternate: None})).unwrap(),
+        check_se_de(Stmt::If(IfStmt{// test: Expr(),
+                                    consequent: Box::new(Stmt::Empty),
+                                    alternate: None}),
                     json!({"type": "IfStatement",
                             "consequent": {"type": "EmptyStatement"},
                             "alternate": serde_json::Value::Null}));
-        assert_eq!(serde_json::to_value(&Stmt::Labled(LabledStmt{label: "lbl".to_string(),
-                                                         body: Box::new(Stmt::Empty)})).unwrap(),
+        check_se_de(Stmt::Labled(LabledStmt{label: "lbl".to_string(),
+                                            body: Box::new(Stmt::Empty)}),
                     json!({"type": "LabeledStatement",
                             "label": "lbl",
                             "body": {"type": "EmptyStatement"}}));
-        assert_eq!(serde_json::to_value(&Stmt::Break(BreakStmt{label: None})).unwrap(),
+        check_se_de(Stmt::Break(BreakStmt{label: None}),
                     json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
-        assert_eq!(serde_json::to_value(&Stmt::Continue(ContinueStmt{label: Some("lbl".to_string())})).unwrap(),
+        check_se_de(Stmt::Continue(ContinueStmt{label: Some("lbl".to_string())}),
                     json!({"type": "ContinueStatement", "label": "lbl"}));
 
         // assert_eq!(serde_json::to_value(&Stmt::With(BreakStmt{label: None})).unwrap(),
         //             json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
 
-        assert_eq!(serde_json::to_value(&Stmt::Switch(SwitchStmt{cases: vec![], lexical: false})).unwrap(),
-                    json!({"type": "SwitchStatement", "cases": [],
-                           "lexical": false}));
+        check_se_de(Stmt::Switch(SwitchStmt{cases: vec![], lexical: false}),
+                    json!({"type": "SwitchStatement", "cases": [], "lexical": false}));
 
         // assert_eq!(serde_json::to_value(&Stmt::Switch(SwitchStmt{cases: vec![], lexical: false})).unwrap(),
         //            json!({"type": "ReturnStatement", "cases": [],
@@ -254,22 +196,23 @@ pub mod jsast {
         //            json!({"type": "ReturnStatement", "cases": [],
         //                   "lexical": false}));
 
-        assert_eq!(serde_json::to_value(&Stmt::Try(TryStmt{
-                                                    block: BlockStmt{body: vec![]},
-                                                    handler: None,
-                                                    guarded_handlers: vec![],
-                                                    finalizer: Some(BlockStmt{body: vec![]})})).unwrap(),
+        check_se_de(Stmt::Try(TryStmt{block: BlockStmt{body: vec![]},
+                                      handler: None,
+                                      guarded_handlers: vec![],
+                                      finalizer: Some(BlockStmt{body: vec![]})}),
                    json!({"type": "TryStatement",
                           "block": {"body": []},
                           "handler": serde_json::Value::Null,
                           "guardedHandlers": [],
                           "finalizer": {"body": []}}));
 
-        assert_eq!(serde_json::to_value(&Stmt::While(WhileStmt{body: Box::new(Stmt::Empty)})).unwrap(),
+        check_se_de(Stmt::While(WhileStmt{body: Box::new(Stmt::Empty)}),
                     json!({"type": "WhileStatement", "body": {"type": "EmptyStatement"}}));
 
-        assert_eq!(serde_json::to_value(&Stmt::For(ForStmt{init: None, body: Box::new(Stmt::Empty)})).unwrap(),
-                    json!({"type": "ForStatement", "init": serde_json::Value::Null, "body": {"type": "EmptyStatement"}}));
+        check_se_de(Stmt::For(ForStmt{init: None, body: Box::new(Stmt::Empty)}),
+                    json!({"type": "ForStatement",
+                           "init": serde_json::Value::Null,
+                           "body": {"type": "EmptyStatement"}}));
 
         // assert_eq!(serde_json::to_value(&Stmt::ForIn(ForInStmt{left: ForStmtInit::Decl(VariableDeclaration{declarations: vec![],
         //                                                                                                    kind: VariableDeclarationKind::Let}),
@@ -282,16 +225,17 @@ pub mod jsast {
 
         // TODO: ForOfStatement
 
-
-        assert_eq!(serde_json::to_value(&Stmt::Let(LetStmt{head: vec![], body: Box::new(Stmt::Empty)})).unwrap(),
-                    json!({"type": "LetStatement", "head": [], "body": {"type": "EmptyStatement"}}));
+        check_se_de(Stmt::Let(LetStmt{head: vec![], body: Box::new(Stmt::Empty)}),
+                    json!({"type": "LetStatement",
+                           "head": [],
+                           "body": {"type": "EmptyStatement"}}));
     }
 
     // interface BlockStatement <: Statement {
     //     type: "BlockStatement";
     //     body: [ Statement ];
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct BlockStmt {
         body: Vec<Stmt>
     }
@@ -302,7 +246,7 @@ pub mod jsast {
     //     consequent: Statement;
     //     alternate: Statement | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct IfStmt {
         // test: Expr, // TODO: Expr
         consequent: Box<Stmt>,
@@ -314,7 +258,7 @@ pub mod jsast {
     //     label: Identifier;
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct LabledStmt {
         label: Identifier,
         body: Box<Stmt>,
@@ -324,7 +268,7 @@ pub mod jsast {
     //     type: "BreakStatement";
     //     label: Identifier | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct BreakStmt {
         label: Option<Identifier>,
     }
@@ -333,7 +277,7 @@ pub mod jsast {
     //     type: "ContinueStatement";
     //     label: Identifier | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ContinueStmt {
         label: Option<Identifier>
     }
@@ -343,7 +287,7 @@ pub mod jsast {
     //     object: Expression;
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct WithStmt {
         // object: Expr, //TODO: Expr
         // body: Expr,
@@ -355,7 +299,7 @@ pub mod jsast {
     //     cases: [ SwitchCase ];
     //     lexical: boolean;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct SwitchStmt {
         // discriminant: Expr, //TODO: Expr
         cases: Vec<SwitchCase>,
@@ -366,7 +310,7 @@ pub mod jsast {
     //     type: "ReturnStatement";
     //     argument: Expression | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ReturnStmt {
         // argument: Option<Expr> //TODO: Expr
     }
@@ -375,7 +319,7 @@ pub mod jsast {
     //     type: "ThrowStatement";
     //     argument: Expression;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ThrowStmt {
         // argument: Expr, //TODO: Expr
     }
@@ -387,7 +331,7 @@ pub mod jsast {
     //     guardedHandlers: [ CatchClause ];
     //     finalizer: BlockStatement | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct TryStmt {
         block: BlockStmt,
         handler: Option<CatchClause>,
@@ -401,7 +345,7 @@ pub mod jsast {
     //     test: Expression;
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct WhileStmt {
         // test: Expr, TODO: Expr
         body: Box<Stmt>
@@ -412,7 +356,7 @@ pub mod jsast {
     //     body: Statement;
     //     test: Expression;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct DoWhileStmt {
         body: Box<Stmt>,
         // test: Expr, // TODO: Expr
@@ -425,7 +369,7 @@ pub mod jsast {
     //     update: Expression | null;
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ForStmt {
         init: Option<ForStmtInit>,
         // test: Option<Expr>, TODO: Expr
@@ -440,7 +384,7 @@ pub mod jsast {
     //     body: Statement;
     //     each: boolean;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ForInStmt {
         left: ForStmtInit,
         // right: Expr, TODO: Expr
@@ -454,14 +398,14 @@ pub mod jsast {
     //     right: Expression;
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ForOfStatement {
         left: ForStmtInit,
         // right: Expr, TODO: Expr
         body: Box<Stmt>
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(untagged)]
     enum ForStmtInit {
         Decl(VariableDeclaration),
@@ -473,7 +417,7 @@ pub mod jsast {
     //     head: [ VariableDeclarator ];
     //     body: Statement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct LetStmt {
         head: Vec<VariableDeclarator>,
         body: Box<Stmt>
@@ -482,13 +426,13 @@ pub mod jsast {
     // interface DebuggerStatement <: Statement {
     //     type: "DebuggerStatement";
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct DebuggerStmt {
     }
 
 
     // interface Declaration <: Statement { }
-    // #[derive(Serialize, Deserialize)]
+    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum Decleration {
         Function(FunctionDecleration),
         Varibale(VariableDeclaration),
@@ -512,13 +456,13 @@ pub mod jsast {
     //     declarations: [ VariableDeclarator ];
     //     kind: "var" | "let" | "const";
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct VariableDeclaration {
         declarations: Vec<VariableDeclarator>,
         kind: VariableDeclarationKind
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum VariableDeclarationKind {
         #[serde(rename="var")]
         Var,
@@ -548,7 +492,7 @@ pub mod jsast {
     //     id: Pattern;
     //     init: Expression | null;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct VariableDeclarator {
         // id: Pattern, TODO: Pattern
         // init: Option<Expr>, TODO: Expr
@@ -560,7 +504,7 @@ pub mod jsast {
     }
 
     // interface Expression <: Node, Pattern { }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Expr {
         #[serde(rename="ThisExpression")]
@@ -586,14 +530,14 @@ pub mod jsast {
 
     #[test]
     fn test_expr_se_de() {
-        assert_eq!(serde_json::to_value(&Expr::This).unwrap(), json!({"type": "ThisExpression"}));
+        check_se_de(Expr::This, json!({"type": "ThisExpression"}));
     }
 
     // interface ArrayExpression <: Expression {
     //     type: "ArrayExpression";
     //     elements: [ Expression | null ];
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ArrayExpr {
         elements: Option<Vec<Expr>>
     }
@@ -602,7 +546,7 @@ pub mod jsast {
     //     type: "ObjectExpression";
     //     properties: [ Property ];
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ObjectExpr {
         // properties: Vec<Property>
     }
@@ -771,7 +715,7 @@ pub mod jsast {
     }
 
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Clause {
         #[serde(rename="SwitchCase")]
@@ -785,7 +729,7 @@ pub mod jsast {
     //     test: Expression | null;
     //     consequent: [ Statement ];
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct SwitchCase {
         // test: Option<Expr>
         consequent: Vec<Stmt>
@@ -797,7 +741,7 @@ pub mod jsast {
     //     guard: Expression | null;
     //     body: BlockStatement;
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct CatchClause {
         // param: Pattern, // TODO: Pattern
         // buard: Option<Expr>, // TODO: Expr
@@ -805,7 +749,7 @@ pub mod jsast {
     }
 
 
-    // #[derive(Serialize, Deserialize)]
+    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
     // #[serde(tag="type")]
     enum Literal {
         Str(String),
@@ -817,7 +761,7 @@ pub mod jsast {
     }
 
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(untagged)]
     enum Operator {
         Unary(UnaryOp),
@@ -841,7 +785,7 @@ pub mod jsast {
     // enum UnaryOperator {
     //     "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="operator")]
     enum UnaryOp {
         #[serde(rename="-")]
@@ -875,7 +819,7 @@ pub mod jsast {
     // enum LogicalOperator {
     //     "||" | "&&"
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="operator")]
     enum LogicalOp {
         #[serde(rename="||")]
@@ -896,7 +840,7 @@ pub mod jsast {
     // enum UpdateOperator {
     //     "++" | "--"
     // }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="operator")]
     enum UpdateOp {
         #[serde(rename="++")]
