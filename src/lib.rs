@@ -5,103 +5,14 @@ extern crate serde;
 extern crate serde_json;
 extern crate serde_test;
 
-// Based on https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/Parser_API
-pub mod jsast {
+// Based on https://esprima.readthedocs.io/en/latest/syntax-tree-format.html
+pub mod estree {
 
+    #![allow(unused_imports)]
     #![allow(dead_code)]
-    
-    type Identifier = String;
-    type Label = String;
+    use serde::ser::{Serialize, Serializer, SerializeStruct};
+    use serde::de::{Deserialize, Deserializer};
 
-    // interface Node {
-    //     type: string;
-    //     loc: SourceLocation | null;
-    // }
-
-
-    // interface Program <: Node {
-    //     type: "Program";
-    //     body: [ Statement ];
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Program {
-        // type: &'static str = "Program",
-        body: String
-        // body: Vec<Statement>,
-    }
-
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="type")]
-    enum BlockStatementOrExpression {
-        #[serde(rename="BlockStatement")]
-        Block(BlockStmt),
-        #[serde(rename="Expression")]
-        Expr(Box<Expr>)
-    }
-
-    // interface Function <: Node {
-    //     id: Identifier | null;
-    //     params: [ Pattern ];
-    //     defaults: [ Expression ];
-    //     rest: Identifier | null;
-    //     body: BlockStatement | Expression;
-    //     generator: boolean;
-    //     expression: boolean;
-    // }
-    struct Function {
-        id: Option<Identifier>,
-        params: Vec<Pattern>,
-        defaults: Vec<Expr>,
-        rest: Option<Identifier>,
-        body: BlockStatementOrExpression,
-        generator: bool,
-        expression: bool
-    }
-
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="type")]
-    enum Stmt {
-        #[serde(rename="EmptyStatement")]
-        Empty,
-        #[serde(rename="BlockStatement")]
-        Block(BlockStmt),
-        // Expression(Expr),
-        // Decleration(Decleration),
-        #[serde(rename="IfStatement")]
-        If(IfStmt),
-        #[serde(rename="LabeledStatement")]
-        Labled(LabledStmt),
-        #[serde(rename="BreakStatement")]
-        Break(BreakStmt),
-        #[serde(rename="ContinueStatement")]
-        Continue(ContinueStmt),
-        #[serde(rename="WithStatement")]
-        With(WithStmt),
-        #[serde(rename="SwitchStatement")]
-        Switch(SwitchStmt),
-        #[serde(rename="ReturnStatement")]
-        Return(ReturnStmt),
-        #[serde(rename="ThrowStatement")]
-        Throw(ThrowStmt),
-        #[serde(rename="TryStatement")]
-        Try(TryStmt),
-        #[serde(rename="WhileStatement")]
-        While(WhileStmt),
-        #[serde(rename="DoWhileStatement")]
-        DoWhile(DoWhileStmt),
-        #[serde(rename="ForStatement")]
-        For(ForStmt),
-        #[serde(rename="ForInStatement")]
-        ForIn(ForInStmt),
-        #[serde(rename="ForOfStatement")]
-        ForOf(ForOfStmt),
-        #[serde(rename="LetStatement")]
-        Let(LetStmt),
-        #[serde(rename="DebuggerStatement")]
-        Debugger(DebuggerStmt),
-    }
 
     #[cfg(test)]
     fn check_se_de<T>(t: T, json: serde_json::Value) where for<'de> T: serde::Serialize +
@@ -112,452 +23,232 @@ pub mod jsast {
         assert_eq!(t, serde_json::from_value::<T>(json).unwrap());
     }
 
-    #[test]
-    fn test_statement_se_de() {
-        check_se_de(Stmt::Empty, json!({"type": "EmptyStatement"}));
-
-        check_se_de(Stmt::Block(BlockStmt{body:vec![]}),
-                    json!({"type": "BlockStatement", "body": []}));
-
-        check_se_de(Stmt::If(IfStmt{test: Expr::This,
-                                    consequent: Box::new(Stmt::Empty),
-                                    alternate: Some(Box::new(Stmt::Empty))}),
-                    json!({"type": "IfStatement",
-                            "test": {"type": "ThisExpression"},
-                            "consequent": {"type": "EmptyStatement"},
-                            "alternate": {"type": "EmptyStatement"}}));
-
-        check_se_de(Stmt::If(IfStmt{test: Expr::This,
-                                    consequent: Box::new(Stmt::Empty),
-                                    alternate: None}),
-                    json!({"type": "IfStatement",
-                            "test": {"type": "ThisExpression"},
-                            "consequent": {"type": "EmptyStatement"},
-                            "alternate": serde_json::Value::Null}));
-        check_se_de(Stmt::Labled(LabledStmt{label: "lbl".to_string(),
-                                            body: Box::new(Stmt::Empty)}),
-                    json!({"type": "LabeledStatement",
-                            "label": "lbl",
-                            "body": {"type": "EmptyStatement"}}));
-        check_se_de(Stmt::Break(BreakStmt{label: None}),
-                    json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
-
-        check_se_de(Stmt::Continue(ContinueStmt{label: Some("lbl".to_string())}),
-                    json!({"type": "ContinueStatement", "label": "lbl"}));
-
-        check_se_de(Stmt::With(WithStmt{object: Expr::This, body: Expr::This}),
-                    json!({"type": "WithStatement",
-                            "object": {"type": "ThisExpression"},
-                            "body": {"type": "ThisExpression"}}));
-
-        check_se_de(Stmt::Switch(SwitchStmt{discriminant: Expr::This, cases: vec![], lexical: false}),
-                    json!({"type": "SwitchStatement",
-                            "discriminant": {"type": "ThisExpression"},
-                            "cases": [],
-                            "lexical": false}));
-
-        check_se_de(Stmt::Return(ReturnStmt{argument: None}),
-                    json!({"type": "ReturnStatement", "argument": serde_json::Value::Null}));
-
-        check_se_de(Stmt::Throw(ThrowStmt{argument: Expr::This}),
-                    json!({"type": "ThrowStatement", "argument": Expr::This}));
-
-        check_se_de(Stmt::Try(TryStmt{block: BlockStmt{body: vec![]},
-                                      handler: None,
-                                      guarded_handlers: vec![],
-                                      finalizer: Some(BlockStmt{body: vec![]})}),
-                   json!({"type": "TryStatement",
-                          "block": {"body": []},
-                          "handler": serde_json::Value::Null,
-                          "guardedHandlers": [],
-                          "finalizer": {"body": []}}));
-
-        check_se_de(Stmt::While(WhileStmt{test: Expr::This, body: Box::new(Stmt::Empty)}),
-                    json!({"type": "WhileStatement",
-                            "test": {"type": "ThisExpression"},
-                            "body": {"type": "EmptyStatement"}}));
-        check_se_de(Stmt::DoWhile(DoWhileStmt{body: Box::new(Stmt::Empty), test: Expr::This}),
-                    json!({"type": "DoWhileStatement",
-                            "body": {"type": "EmptyStatement"},
-                            "test": {"type": "ThisExpression"}}));
-
-        check_se_de(Stmt::For(ForStmt{init: None, test: None, update: None, body: Box::new(Stmt::Empty)}),
-                    json!({"type": "ForStatement",
-                           "init": serde_json::Value::Null,
-                           "test": serde_json::Value::Null,
-                           "update": serde_json::Value::Null,
-                           "body": {"type": "EmptyStatement"}}));
-
-        check_se_de(Stmt::ForIn(ForInStmt{left: ForStmtInit::Decl(VariableDeclaration{
-                                                                    declarations: vec![],
-                                                                    kind: VariableDeclarationKind::Let}),
-                                           right: Expr::This,
-                                           body: Box::new(Stmt::Empty),
-                                           each: false}),
-                    json!({"type": "ForInStatement",
-                            "left": {"declarations": [], "kind": "let"},
-                            "right": {"type": "ThisExpression"},
-                            "body": {"type": "EmptyStatement"},
-                            "each": false}));
-
-        check_se_de(Stmt::ForOf(ForOfStmt{left: ForStmtInit::Expr(Expr::This),
-                                           right: Expr::This,
-                                           body: Box::new(Stmt::Empty)}),
-                    json!({"type": "ForOfStatement",
-                            "left": {"type": "ThisExpression"},
-                            "right": {"type": "ThisExpression"},
-                            "body": {"type": "EmptyStatement"}}));
-
-        check_se_de(Stmt::Let(LetStmt{head: vec![], body: Box::new(Stmt::Empty)}),
-                    json!({"type": "LetStatement",
-                           "head": [],
-                           "body": {"type": "EmptyStatement"}}));
+    #[cfg(test)]
+    fn check_se<T>(t: T, json: serde_json::Value) where T: serde::Serialize +
+                                                          std::fmt::Debug +
+                                                          std::cmp::PartialEq {
+        assert_eq!(serde_json::to_value(&t).unwrap(), json);
     }
 
-    // interface BlockStatement <: Statement {
-    //     type: "BlockStatement";
-    //     body: [ Statement ];
-    // }
+    // type BindingPattern = ArrayPattern | ObjectPattern;
+    // TODO: tests
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct BlockStmt {
-        body: Vec<Stmt>
+    enum BindingPattern {
+        // interface ArrayPattern {
+        //     type: 'ArrayPattern';
+        //     elements: ArrayPatternElement[];
+        // }
+        #[serde(rename="ArrayPattern")]
+        Array{elements: Vec<ArrayPatternElement>},
+
+        // interface ObjectPattern {
+        //     type: 'ObjectPattern';
+        //     properties: Property[];
+        // }
+        #[serde(rename="ObjectPattern")]
+        Object{properties: Vec<Property>}
     }
 
-    // interface IfStatement <: Statement {
-    //     type: "IfStatement";
-    //     test: Expression;
-    //     consequent: Statement;
-    //     alternate: Statement | null;
-    // }
+    // type ArrayPatternElement = AssignmentPattern | Identifier | BindingPattern | RestElement | null;
+    // TODO tests
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct IfStmt {
-        test: Expr,
-        consequent: Box<Stmt>,
-        alternate: Option<Box<Stmt>>
+    #[serde(tag="type")]
+    enum ArrayPatternElement {
+        #[serde(rename="AssignmentPattern")]
+        Assignment(AssignmentPattern),
+        #[serde(rename="Identifier")]
+        Ident(Identifier),
+        #[serde(rename="BindingPattern")]
+        Binding(BindingPattern),
+
+        // interface RestElement {
+        //     type: 'RestElement';
+        //     argument: Identifier | BindingPattern;
+        // }
+        #[serde(rename="RestElement")]
+        RestElement{argument: IdentOrPattern}, // TODO argument as obj
+        Null,
     }
 
-    // interface LabeledStatement <: Statement {
-    //     type: "LabeledStatement";
-    //     label: Identifier;
-    //     body: Statement;
-    // }
+    // Gets serialized as object
+    // TODO as obj
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct LabledStmt {
-        label: Identifier,
-        body: Box<Stmt>,
+    #[serde(tag="type")]
+    enum IdentOrPattern {
+        #[serde(rename="Identifier")]
+        Ident(Identifier),
+        #[serde(rename="BindingPattern")]
+        Pattern(Box<BindingPattern>)
     }
 
-    // interface BreakStatement <: Statement {
-    //     type: "BreakStatement";
-    //     label: Identifier | null;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct BreakStmt {
-        label: Option<Identifier>,
-    }
-
-    // interface ContinueStatement <: Statement {
-    //     type: "ContinueStatement";
-    //     label: Identifier | null;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ContinueStmt {
-        label: Option<Identifier>
-    }
-
-    // interface WithStatement <: Statement {
-    //     type: "WithStatement";
-    //     object: Expression;
-    //     body: Statement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct WithStmt {
-        object: Expr,
-        body: Expr,
-    }
-
-    // interface SwitchStatement <: Statement {
-    //     type: "SwitchStatement";
-    //     discriminant: Expression;
-    //     cases: [ SwitchCase ];
-    //     lexical: boolean;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct SwitchStmt {
-        discriminant: Expr,
-        cases: Vec<SwitchCase>,
-        lexical: bool
-    }
-
-    // interface ReturnStatement <: Statement {
-    //     type: "ReturnStatement";
-    //     argument: Expression | null;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ReturnStmt {
-        argument: Option<Expr>
-    }
-
-    // interface ThrowStatement <: Statement {
-    //     type: "ThrowStatement";
-    //     argument: Expression;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ThrowStmt {
-        argument: Expr
-    }
-
-    // interface TryStatement <: Statement {
-    //     type: "TryStatement";
-    //     block: BlockStatement;
-    //     handler: CatchClause | null;
-    //     guardedHandlers: [ CatchClause ];
-    //     finalizer: BlockStatement | null;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct TryStmt {
-        block: BlockStmt,
-        handler: Option<CatchClause>,
-        #[serde(rename="guardedHandlers")]
-        guarded_handlers: Vec<CatchClause>,
-        finalizer: Option<BlockStmt>
-    }
-
-    // interface WhileStatement <: Statement {
-    //     type: "WhileStatement";
-    //     test: Expression;
-    //     body: Statement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct WhileStmt {
-        test: Expr,
-        body: Box<Stmt>
-    }
-
-    // interface DoWhileStatement <: Statement {
-    //     type: "DoWhileStatement";
-    //     body: Statement;
-    //     test: Expression;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct DoWhileStmt {
-        body: Box<Stmt>,
-        test: Expr,
-    }
-
-    // interface ForStatement <: Statement {
-    //     type: "ForStatement";
-    //     init: VariableDeclaration | Expression | null;
-    //     test: Expression | null;
-    //     update: Expression | null;
-    //     body: Statement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ForStmt {
-        init: Option<ForStmtInit>,
-        test: Option<Expr>,
-        update: Option<Expr>,
-        body: Box<Stmt>
-    }
-
-    // interface ForInStatement <: Statement {
-    //     type: "ForInStatement";
-    //     left: VariableDeclaration |  Expression;
+    // interface AssignmentPattern {
+    //     type: 'AssignmentPattern';
+    //     left: Identifier | BindingPattern;
     //     right: Expression;
-    //     body: Statement;
-    //     each: boolean;
     // }
+    // TODO as obj func
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ForInStmt {
-        left: ForStmtInit,
-        right: Expr,
-        body: Box<Stmt>,
-        each: bool
+    struct AssignmentPattern {
+        left: IdentOrPattern,
+        right: Expr
     }
 
-    // interface ForOfStatement <: Statement {
-    //     type: "ForOfStatement";
-    //     left: VariableDeclaration |  Expression;
-    //     right: Expression;
-    //     body: Statement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ForOfStmt {
-        left: ForStmtInit,
-        right: Expr,
-        body: Box<Stmt>
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(untagged)]
-    enum ForStmtInit {
-        Decl(VariableDeclaration),
-        Expr(Expr),
-    }
-
-    // interface LetStatement <: Statement {
-    //     type: "LetStatement";
-    //     head: [ VariableDeclarator ];
-    //     body: Statement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct LetStmt {
-        head: Vec<VariableDeclarator>,
-        body: Box<Stmt>
-    }
-
-    // interface DebuggerStatement <: Statement {
-    //     type: "DebuggerStatement";
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct DebuggerStmt {
+    fn serialize_assignpat_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        let mut state = s.serialize_struct("Identifier", 2)?;
+        state.serialize_field("type", "Identifier")?;
+        state.serialize_field("name", &ident.name)?;
+        state.end()
     }
 
 
-    // interface Declaration <: Statement { }
-    // #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum Decleration {
-        Function(FunctionDecleration),
-        Varibale(VariableDeclaration),
-        VariableDeclarator(VariableDeclaration)
-    }
-
-    // interface FunctionDeclaration <: Function, Declaration {
-    //     type: "FunctionDeclaration";
-    //     id: Identifier;
-    //     params: [ Pattern ];
-    //     defaults: [ Expression ];
-    //     rest: Identifier | null;
-    //     body: BlockStatement | Expression;
-    //     generator: boolean;
-    //     expression: boolean;
-    // }
-    type FunctionDecleration = Function;
-
-    // interface VariableDeclaration <: Declaration {
-    //     type: "VariableDeclaration";
-    //     declarations: [ VariableDeclarator ];
-    //     kind: "var" | "let" | "const";
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct VariableDeclaration {
-        declarations: Vec<VariableDeclarator>,
-        kind: VariableDeclarationKind
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum VariableDeclarationKind {
-        #[serde(rename="var")]
-        Var,
-        #[serde(rename="let")]
-        Let,
-        #[serde(rename="const")]
-        Const
-    }
-
-    #[test]
-    fn test_vardec_se_de() {
-        check_se_de(VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Let},
-                    json!({"declarations": [], "kind": "let"}));
-
-        check_se_de(VariableDeclaration{declarations: vec![], kind: VariableDeclarationKind::Var},
-                    json!({"declarations": [], "kind": "var".to_string()}));
-    }
-
-    // interface VariableDeclarator <: Node {
-    //     type: "VariableDeclarator";
-    //     id: Pattern;
-    //     init: Expression | null;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct VariableDeclarator {
-        id: Pattern,
-        init: Option<Expr>
-    }
-
-    // interface Expression <: Node, Pattern { }
+    // type Expression = ThisExpression | Identifier | Literal |
+    //     ArrayExpression | ObjectExpression | FunctionExpression | ArrowFunctionExpression | ClassExpression |
+    //     TaggedTemplateExpression | MemberExpression | Super | MetaProperty |
+    //     NewExpression | CallExpression | UpdateExpression | AwaitExpression | UnaryExpression |
+    //     BinaryExpression | LogicalExpression | ConditionalExpression |
+    //     YieldExpression | AssignmentExpression | SequenceExpression;
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     #[serde(tag="type")]
     enum Expr {
         #[serde(rename="ThisExpression")]
         This,
+        #[serde(rename="Identifier")]
+        Ident(Identifier),
+        #[serde(rename="Literal")]
+        Literal(Literal),
         #[serde(rename="ArrayExpression")]
         Array(ArrayExpr),
         #[serde(rename="ObjectExpression")]
         Object(ObjectExpr),
         #[serde(rename="FunctionExpression")]
         Function(FunctionExpr),
-        #[serde(rename="ArrowExpression")]
-        Arrow(ArrowExpr),
-        #[serde(rename="SeqeunceExpression")]
-        Sequence(SequenceExpr),
-        #[serde(rename="UnaryExpression")]
-        Unary(UnaryExpr),
-        #[serde(rename="BinaryExpression")]
-        Binary(BinaryExpr),
-        #[serde(rename="AssignmentExpression")]
-        Assignment(AssignmentExpr),
-        #[serde(rename="UpdateExpression")]
-        Update(UpdateExpr),
-        #[serde(rename="LogicalExpression")]
-        Logical(LogicalExpr),
-        #[serde(rename="ConditionalExpression")]
-        Conditional(ConditionalExpr),
+        #[serde(rename="ArrowFunctionExpression")]
+        ArrowFunc(ArrowFuncExpr), // TODO test
+        #[serde(rename="ArrowFunctionExpression")]
+        Class(ClassExpr), // TODO test
+        #[serde(rename="TaggedTemplateExpression")]
+        TaggedTemplate, // (TaggedTemplateExpr) TODO
+        #[serde(rename="MemberExpression")]
+        Member(MemberExpr),
+        Super,
+        #[serde(rename="MetaProperty")]
+        MetaProperty(MetaProperty), // TODO test
         #[serde(rename="NewExpression")]
         New(NewExpr),
         #[serde(rename="CallExpression")]
-        Call(CallExpr),
-        #[serde(rename="MemberExpression")]
-        Member(MemberExpr)
+        Call(CallExpr), // TODO test
+        #[serde(rename="UpdateExpression")]
+        Update(UpdateExpr),
+        #[serde(rename="AwaitExpression")]
+        Await(AwaitExpr), // TODO test
+        #[serde(rename="UnaryExpression")]
+        Unary(UnaryExpr), // TODO test
+        #[serde(rename="BinaryExpression")]
+        Binary(BinaryExpr), // TODO test
+        #[serde(rename="LogicalExpression")]
+        Logical(LogicalExpr), // TODO test
+        #[serde(rename="ConditionalExpression")]
+        Conditional(ConditionalExpr), // TODO test
+        #[serde(rename="YieldExpression")]
+        Yield(YieldExpr), // TODO test
+        #[serde(rename="AssignmentExpression")]
+        Assignment(AssignmentExpr), // TODO test
+        #[serde(rename="SequenceExpression")]
+        Sequence(SequenceExpr) // TODO test
     }
 
     #[test]
     fn test_expr_se_de() {
         check_se_de(Expr::This, json!({"type": "ThisExpression"}));
-        check_se_de(Expr::Array(ArrayExpr{elements: vec![]}),
-                    json!({"type": "ArrayExpression", "elements": []}));
-        check_se_de(Expr::Object(ObjectExpr{properties: vec![]}),
-                    json!({"type": "ObjectExpression", "properties": []}));
+        check_se_de(Expr::Ident(Identifier{name: "test".into()}),
+                    json!({"type": "Identifier", "name": "test"}));
+        check_se_de(Expr::Literal(Literal{value: LiteralKind::Bool(false),
+                                          raw: "false".into(),
+                                          regex: None}),
+                    json!({"type": "Literal", "value": false, "raw": "false"}));
+        // TODO
+        // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
+        //                                  raw: "/.*/g".into(),
+        //                                  regex: Some(LiteralRegex{pattern: ".*".into(),
+        //                                                           flags: "g".into()})}),
+        //             json!({"type": "Literal",
+        //                     "value": "/.*/g",
+        //                     "raw": "/.*/g",
+        //                     "regex": {"pattern": ".*", "flags": "g"}}));
+
+        check_se_de(Expr::Array(
+                        ArrayExpr{elements: vec![
+                            ArrayExprElement::Expr(
+                                Expr::Literal(
+                                    Literal{value: LiteralKind::Num(0.0),
+                                                    raw: "0".into(),
+                                                    regex: None}
+                        ))]}),
+                    json!({"type": "ArrayExpression",
+                            "elements": [ {
+                                    "type": "Literal",
+                                    "value": 0.0,
+                                    "raw": "0"
+                                }]
+                            }));
+
+        check_se_de(Expr::Object(ObjectExpr{properties: vec![Property{
+                                                                key: Expr::Ident(Identifier{
+                                                                        name: "ArrowRight".into()}),
+                                                                computed: false,
+                                                                value: Some(Expr::This),
+                                                                kind: PropertyKind::Init,
+                                                                shorthand: false}]}),
+                    json!({"type": "ObjectExpression", "properties": [
+                                                            {"type": "Property",
+                                                                "key": {
+                                                                    "type": "Identifier",
+                                                                    "name": "ArrowRight"
+                                                                },
+                                                                "computed": false,
+                                                                "value": {
+                                                                    "type": "ThisExpression"
+                                                                },
+                                                                "kind": "init",
+                                                                "method": false,
+                                                                "shorthand": false}]}));
 
         check_se_de(Expr::Function(FunctionExpr{id: None,
-                                                params: vec![],
-                                                defaults: vec![],
-                                                rest: None,
-                                                body: BlockStatementOrExpression::Block(BlockStmt{body: vec![]}),
-                                                generator: false,
-                                                expression: false}),
+                                                 params: vec![],
+                                                 body: BlockStmt{body: vec![]},
+                                                 generator: false,
+                                                 expression: false,
+                                                 async: false}),
                     json!({"type": "FunctionExpression",
-                            "id": serde_json::Value::Null,
+                            "id": null,
                             "params": [],
-                            "defaults": [],
-                            "rest": serde_json::Value::Null,
-                            "body": {"type": "BlockStatement", "body": []},
+                            "body": {
+                                "type": "BlockStatement",
+                                "body": []
+                            },
                             "generator": false,
-                            "expression": false}));
+                            "expression": false,
+                            "async": false
+                        }));
 
-        check_se_de(Expr::Sequence(SequenceExpr{expressions: vec![]}),
-                    json!({"type": "SeqeunceExpression", "expressions": []}));
-        check_se_de(Expr::Unary(UnaryExpr{operator: UnaryOp::Plus,
-                                          prefix: false,
-                                          argument: Box::new(Expr::This)}),
-                    json!({"type": "UnaryExpression",
-                            "operator": "+",
-                            "prefix": false,
-                            "argument": {"type": "ThisExpression"}}));
-        check_se_de(Expr::Binary(BinaryExpr{operator: BinaryOp::Eq,
-                                            left: Box::new(Expr::This),
-                                            right: Box::new(Expr::This)}),
-                    json!({"type": "BinaryExpression",
-                            "operator": "==",
-                            "left": {"type": "ThisExpression"},
-                            "right": {"type": "ThisExpression"}}));
-        check_se_de(Expr::Assignment(AssignmentExpr{operator: AssignmentOp::Assign,
-                                            left: Pattern::Array(ArrayPattern{elements: vec![]}),
-                                            right: Box::new(Expr::This)}),
-                    json!({"type": "AssignmentExpression",
-                            "operator": "=",
-                            "left": {"type": "ArrayPattern", "elements": []},
-                            "right": {"type": "ThisExpression"}}));
+        check_se_de(Expr::Member(MemberExpr{computed: false,
+                                            object: Box::new(Expr::This),
+                                            property: Box::new(Expr::Ident(Identifier{name: "snake".into()}))}),
+                    json!({"type": "MemberExpression",
+                                "computed": false,
+                                "object": {
+                                    "type": "ThisExpression"
+                                },
+                                "property": {
+                                    "type": "Identifier",
+                                    "name": "snake"
+                                }}));
+
+        check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This), arguments: vec![]}),
+                    json!({"type": "NewExpression",
+                            "callee": {"type": "ThisExpression"},
+                            "arguments": []}));
         check_se_de(Expr::Update(UpdateExpr{operator: UpdateOp::Inc,
                                             argument: Box::new(Expr::This),
                                             prefix: false}),
@@ -565,140 +256,300 @@ pub mod jsast {
                             "operator": "++",
                             "argument": {"type": "ThisExpression"},
                             "prefix": false}));
-        check_se_de(Expr::Logical(LogicalExpr{operator: LogicalOp::And,
-                                              left: Box::new(Expr::This),
-                                              right: Box::new(Expr::This)}),
-                    json!({"type": "LogicalExpression",
-                            "operator": "&&",
-                            "left": {"type": "ThisExpression"},
-                            "right": {"type": "ThisExpression"}}));
-        check_se_de(Expr::Conditional(ConditionalExpr{test: Box::new(Expr::This),
-                                              alternate: Box::new(Expr::This),
-                                              consequent: Box::new(Expr::This)}),
-                    json!({"type": "ConditionalExpression",
-                            "test": {"type": "ThisExpression"},
-                            "alternate": {"type": "ThisExpression"},
-                            "consequent": {"type": "ThisExpression"}}));
-        check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This),
-                                      arguments: vec![]}),
-                    json!({"type": "NewExpression",
-                            "callee": {"type": "ThisExpression"},
-                            "arguments": []}));
-        check_se_de(Expr::Call(CallExpr{callee: Box::new(Expr::This),
-                                       arguments: vec![]}),
-                    json!({"type": "CallExpression",
-                            "callee": {"type": "ThisExpression"},
-                            "arguments": []}));
-        check_se_de(Expr::Member(MemberExpr{object: Box::new(Expr::This),
-                                            property: MemberExprProp::Ident("id".to_string()),
-                                            computed: true}),
-                    json!({"type": "MemberExpression",
-                            "object": {"type": "ThisExpression"},
-                            "property": "id",
-                            "computed": true}));
     }
 
-    // interface ArrayExpression <: Expression {
-    //     type: "ArrayExpression";
-    //     elements: [ Expression | null ];
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Identifier {
+        pub name: String
+    }
+
+    fn serialize_ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        let mut state = s.serialize_struct("Identifier", 2)?;
+        state.serialize_field("type", "Identifier")?;
+        state.serialize_field("name", &ident.name)?;
+        state.end()
+    }
+
+    fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        match ident {
+            Some(x) => serialize_ident_as_obj(x, s),
+            None => s.serialize_none(),
+        }
+    }
+
+
+    // interface Literal {
+    //     type: 'Literal';
+    //     value: boolean | number | string | RegExp | null;
+    //     raw: string;
+    //     regex?: { pattern: string, flags: string };
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Literal {
+        value: LiteralKind,
+        raw: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        regex: Option<LiteralRegex>
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum LiteralKind {
+        Bool(bool),
+        Num(f64),
+        Str(String),
+        RegEx(String),
+        Null
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct LiteralRegex {
+        pattern: String,
+        flags: String,
+    }
+
+    // interface ArrayExpression {
+    //     type: 'ArrayExpression';
+    //     elements: ArrayExpressionElement[];
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct ArrayExpr {
-        elements: Vec<Option<Expr>>
+        elements: Vec<ArrayExprElement>
     }
 
-    // interface ObjectExpression <: Expression {
-    //     type: "ObjectExpression";
-    //     properties: [ Property ];
-    // }
+    // type ArrayExpressionElement = Expression | SpreadElement;
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum ArrayExprElement {
+        Expr(Expr),
+        #[serde(serialize_with="spreadelement_as_obj")]
+        Spread(SpreadElement)
+    }
+
+    // interface ObjectExpression {
+    //     type: 'ObjectExpression';
+    //     properties: Property[];
+    // }
+    #[derive(Deserialize, PartialEq, Debug)]
     struct ObjectExpr {
         properties: Vec<Property>
     }
 
-    // interface FunctionExpression <: Function, Expression {
-    //     type: "FunctionExpression";
+    impl serde::Serialize for ObjectExpr {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+            let mut state = serializer.serialize_struct("ObjectExpr", 2)?;
+            state.serialize_field("type", "ObjectExpression")?;
+            state.serialize_field("properties", &self.properties)?;
+            state.end()
+        }
+    }
+
+    // interface Property {
+    //     type: 'Property';
+    //     key: Expression;
+    //     computed: boolean;
+    //     value: Expression | null;
+    //     kind: 'get' | 'set' | 'init';
+    //     method: false;
+    //     shorthand: boolean;
+    // }
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Property {
+        key: Expr,
+        computed: bool,
+        value: Option<Expr>,
+        kind: PropertyKind,
+        // method: bool, // This field is constant false
+        shorthand: bool
+    }
+
+    impl serde::Serialize for Property {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+            let mut state = serializer.serialize_struct("Property", 7)?;
+            state.serialize_field("type", "Property")?;
+            state.serialize_field("key", &self.key)?;
+            state.serialize_field("computed", &self.computed)?;
+            state.serialize_field("value", &self.value)?;
+            state.serialize_field("kind", &self.kind)?;
+            state.serialize_field("method", &false)?;
+            state.serialize_field("shorthand", &self.shorthand)?;
+            state.end()
+        }
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum PropertyKind {
+        #[serde(rename="get")]
+        Get,
+        #[serde(rename="set")]
+        Set,
+        #[serde(rename="init")]
+        Init
+    }
+
+    // interface FunctionExpression {
+    //     type: 'FunctionExpression';
     //     id: Identifier | null;
-    //     params: [ Pattern ];
-    //     defaults: [ Expression ];
-    //     rest: Identifier | null;
-    //     body: BlockStatement | Expression;
+    //     params: FunctionParameter[];
+    //     body: BlockStatement;
     //     generator: boolean;
+    //     async: boolean;
     //     expression: boolean;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct FunctionExpr {
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
         id: Option<Identifier>,
-        params: Vec<Pattern>,
-        defaults: Vec<Expr>,
-        rest: Option<Identifier>,
-        body: BlockStatementOrExpression,
+        params: Vec<FunctionParam>,
+        #[serde(serialize_with="blockstmt_as_obj")]
+        body: BlockStmt,
         generator: bool,
+        async: bool,
+        expression: bool,
+    }
+
+    // type FunctionParameter = AssignmentPattern | Identifier | BindingPattern;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(rename="type")]
+    enum FunctionParam {
+        #[serde(rename="AssignmentPattern")]
+        Assignment(AssignmentPattern),
+        #[serde(rename="Identifier")]
+        Ident(Identifier),
+        #[serde(rename="BindingPattern")]
+        Binding(BindingPattern)
+    }
+
+    // interface ArrowFunctionExpression {
+    //     type: 'ArrowFunctionExpression';
+    //     id: Identifier | null;
+    //     params: FunctionParameter[];
+    //     body: BlockStatement | Expression;
+    //     generator: boolean;
+    //     async: boolean;
+    //     expression: false;
+    // }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ArrowFuncExpr {
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        id: Option<Identifier>,
+        params: Vec<FunctionParam>,
+        body: ArrowFuncExprBody,
+        generator: bool,
+        async: bool,
         expression: bool
     }
 
-    // interface ArrowExpression <: Function, Expression {
-    //     type: "ArrowExpression";
-    //     params: [ Pattern ];
-    //     defaults: [ Expression ];
-    //     rest: Identifier | null;
-    //     body: BlockStatement | Expression;
-    //     generator: boolean;
-    //     expression: boolean;
-    // }
-    type ArrowExpr = FunctionExpr;
-
-    // interface SequenceExpression <: Expression {
-    //     type: "SequenceExpression";
-    //     expressions: [ Expression ];
-    // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct SequenceExpr {
-        expressions: Vec<Expr>
+    enum ArrowFuncExprBody {
+        #[serde(serialize_with="blockstmt_as_obj")]
+        Block(BlockStmt),
+        Expr(Box<Expr>)
     }
 
-    // interface UnaryExpression <: Expression {
-    //     type: "UnaryExpression";
-    //     operator: UnaryOperator;
-    //     prefix: boolean;
+    // interface ClassExpression {
+    //     type: 'ClassExpression';
+    //     id: Identifier | null;
+    //     superClass: Identifier | null;
+    //     body: ClassBody;
+    // }
+    type ClassExpr = ClassDecl;
+
+    // interface TaggedTemplateExpression {
+    //     type: 'TaggedTemplateExpression';
+    //     readonly tag: Expression;
+    //     readonly quasi: TemplateLiteral;
+    // }
+    // TODO
+
+    // interface MemberExpression {
+    //     type: 'MemberExpression';
+    //     computed: boolean;
+    //     object: Expression;
+    //     property: Expression;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct MemberExpr {
+        computed: bool,
+        object: Box<Expr>,
+        property: Box<Expr>,
+    }
+
+    // interface MetaProperty {
+    //     type: 'MetaProperty';
+    //     meta: Identifier;
+    //     property: Identifier;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct MetaProperty {
+        meta: Identifier,
+        property: Identifier
+    }
+
+    // interface CallExpression {
+    //     type: 'CallExpression';
+    //     callee: Expression | Import;
+    //     arguments: ArgumentListElement[];
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct CallExpr {
+        callee: CallExprCallee,
+        argument: Vec<ArgumentListElement>
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum CallExprCallee {
+        Expr(Box<Expr>),
+        Import,
+    }
+
+    // interface Import {
+    //     type: 'Import';
+    // }
+
+    // interface NewExpression {
+    //     type: 'NewExpression';
+    //     callee: Expression;
+    //     arguments: ArgumentListElement[];
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct NewExpr {
+        callee: Box<Expr>,
+        arguments: Vec<ArgumentListElement>,
+    }
+
+    // type ArgumentListElement = Expression | SpreadElement;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum ArgumentListElement {
+        Expr(Box<Expr>),
+        #[serde(serialize_with="spreadelement_as_obj")]
+        Spread(SpreadElement),
+    }
+
+    // interface SpreadElement {
+    //     type: 'SpreadElement';
     //     argument: Expression;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct UnaryExpr {
-        operator: UnaryOp,
-        prefix: bool,
-        argument: Box<Expr>,
+    struct SpreadElement {
+        argument: Box<Expr>
     }
 
-    // interface BinaryExpression <: Expression {
-    //     type: "BinaryExpression";
-    //     operator: BinaryOperator;
-    //     left: Expression;
-    //     right: Expression;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct BinaryExpr {
-        operator: BinaryOp,
-        left: Box<Expr>,
-        right: Box<Expr>
+    fn spreadelement_as_obj<S>(spread: &SpreadElement, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        let mut state = s.serialize_struct("SpreadElement", 2)?;
+        state.serialize_field("type", "SpreadElement")?;
+        state.serialize_field("argument", &spread.argument)?;
+        state.end()
     }
 
-    // interface AssignmentExpression <: Expression {
-    //     type: "AssignmentExpression";
-    //     operator: AssignmentOperator;
-    //     left: Pattern;
-    //     right: Expression;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct AssignmentExpr {
-        operator: AssignmentOp,
-        left: Pattern,
-        right: Box<Expr>
-    }
-
-    // interface UpdateExpression <: Expression {
-    //     type: "UpdateExpression";
-    //     operator: UpdateOperator;
+    // interface UpdateExpression {
+    //     type: 'UpdateExpression';
+    //     operator: '++' | '--';
     //     argument: Expression;
     //     prefix: boolean;
     // }
@@ -709,189 +560,37 @@ pub mod jsast {
         prefix: bool
     }
 
-    // interface LogicalExpression <: Expression {
-    //     type: "LogicalExpression";
-    //     operator: LogicalOperator;
-    //     left: Expression;
-    //     right: Expression;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum UpdateOp {
+        #[serde(rename="++")]
+        Inc,
+        #[serde(rename="--")]
+        Dec
+    }
+
+    // interface AwaitExpression {
+    //     type: 'AwaitExpression';
+    //     argument: Expression;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct LogicalExpr {
-        operator: LogicalOp,
-        left: Box<Expr>,
-        right: Box<Expr>
+    struct AwaitExpr {
+        argument: Box<Expr>
     }
 
-    // interface ConditionalExpression <: Expression {
-    //     type: "ConditionalExpression";
-    //     test: Expression;
-    //     alternate: Expression;
-    //     consequent: Expression;
+    // interface UnaryExpression {
+    //     type: 'UnaryExpression';
+    //     operator: '+' | '-' | '~' | '!' | 'delete' | 'void' | 'typeof';
+    //     argument: Expression;
+    //     prefix: true;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ConditionalExpr {
-        test: Box<Expr>,
-        alternate: Box<Expr>,
-        consequent: Box<Expr>,
+    struct UnaryExpr {
+        operator: UnaryOp,
+        argument: Box<Expr>,
+        // TODO: true
+        prefix: bool
     }
 
-    // interface NewExpression <: Expression {
-    //     type: "NewExpression";
-    //     callee: Expression;
-    //     arguments: [ Expression ];
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct NewExpr {
-        callee: Box<Expr>,
-        arguments: Vec<Expr>
-    }
-
-    // interface CallExpression <: Expression {
-    //     type: "CallExpression";
-    //     callee: Expression;
-    //     arguments: [ Expression ];
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct CallExpr {
-        callee: Box<Expr>,
-        arguments: Vec<Expr>
-    }
-
-    // interface MemberExpression <: Expression {
-    //     type: "MemberExpression";
-    //     object: Expression;
-    //     property: Identifier | Expression;
-    //     computed: boolean;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct MemberExpr {
-        object: Box<Expr>,
-        property: MemberExprProp,
-        computed: bool
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(untagged)]
-    enum MemberExprProp {
-        Ident(Identifier),
-        Expr(Box<Expr>),
-    }
-
-
-    // interface Property <: Node {
-    //     type: "Property";
-    //     key: Literal | Identifier;
-    //     value: Expression;
-    //     kind: "init" | "get" | "set";
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Property {
-        key: PropertyKey,
-        value: Expr,
-        kind: PropertyKind
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum PropertyKey {
-        Literal(Literal),
-        Identifier(Identifier)
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum PropertyKind {
-        #[serde(rename="init")]
-        Init,
-        #[serde(rename="get")]
-        Get,
-        #[serde(rename="set")]
-        Set
-    }
-
-
-    // interface Pattern <: Node { }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="type")]
-    enum Pattern {
-        #[serde(rename="ObjectPattern")]
-        Object(ObjectPattern),
-        #[serde(rename="ArrayPattern")]
-        Array(ArrayPattern)
-    }
-
-    // interface ObjectPattern <: Pattern {
-    //     type: "ObjectPattern";
-    //     properties: [ { key: Literal | Identifier, value: Pattern } ];
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ObjectPattern {
-        properties: Vec<ObjectPatternProp>
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct ObjectPatternProp {
-        key: PropertyKey,
-        value: Pattern
-    }
-
-    // interface ArrayPattern <: Pattern {
-    //     type: "ArrayPattern";
-    //     elements: [ Pattern | null ];
-    // }
-    type ArrayPattern = ArrayExpr;
-
-
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    #[serde(tag="type")]
-    enum Clause {
-        #[serde(rename="SwitchCase")]
-        Swtich(SwitchCase),
-        #[serde(rename="CatchClause")]
-        Catch(CatchClause)
-    }
-
-    // interface SwitchCase <: Node {
-    //     type: "SwitchCase";
-    //     test: Expression | null;
-    //     consequent: [ Statement ];
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct SwitchCase {
-        test: Option<Expr>,
-        consequent: Vec<Stmt>
-    }
-
-    // interface CatchClause <: Node {
-    //     type: "CatchClause";
-    //     param: Pattern;
-    //     guard: Expression | null;
-    //     body: BlockStatement;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct CatchClause {
-        param: Pattern,
-        buard: Option<Expr>,
-        body: BlockStmt
-    }
-
-
-    // interface Literal <: Node, Expression {
-    //     type: "Literal";
-    //     value: string | boolean | null | number | RegExp;
-    // }
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum Literal {
-        Str(String),
-        Bool(bool),
-        Null,
-        // TODO: Is this how JS represents numbers?
-        Num(f64),
-        Regex(String),
-    }
-
-    // enum UnaryOperator {
-    //     "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
-    // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum UnaryOp {
         #[serde(rename="-")]
@@ -910,15 +609,23 @@ pub mod jsast {
         Delete
     }
 
-    // enum BinaryOperator {
-    //     "==" | "!=" | "===" | "!=="
-    //          | "<" | "<=" | ">" | ">="
-    //          | "<<" | ">>" | ">>>"
-    //          | "+" | "-" | "*" | "/" | "%"
-    //          | "|" | "^" | "&" | "in"
-    //          | "instanceof" | ".."
+    // interface BinaryExpression {
+    //     type: 'BinaryExpression';
+    //     operator: 'instanceof' | 'in' | '+' | '-' | '*' | '/' | '%' | '**' |
+    //         '|' | '^' | '&' | '==' | '!=' | '===' | '!==' |
+    //         '<' | '>' | '<=' | '<<' | '>>' | '>>>';
+    //     left: Expression;
+    //     right: Expression;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct BinaryExpr {
+        operator: BinaryOp,
+        left: Box<Expr>,
+        right: Box<Expr>
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
     enum BinaryOp {
         #[serde(rename="==")]
         Eq,
@@ -962,13 +669,21 @@ pub mod jsast {
         In,
         #[serde(rename="instanceof")]
         Instanceof,
-        // #[serde(rename="..")]
-        // DotDot, Thisis E4x specific
     }
 
-    // enum LogicalOperator {
-    //     "||" | "&&"
+    // interface LogicalExpression {
+    //     type: 'LogicalExpression';
+    //     operator: '||' | '&&';
+    //     left: Expression;
+    //     right: Expression;
     // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct LogicalExpr {
+        operator: LogicalOp,
+        left: Box<Expr>,
+        right: Box<Expr>
+    }
+
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum LogicalOp {
         #[serde(rename="||")]
@@ -977,11 +692,44 @@ pub mod jsast {
         And,
     }
 
-    // enum AssignmentOperator {
-    //     "=" | "+=" | "-=" | "*=" | "/=" | "%="
-    //         | "<<=" | ">>=" | ">>>="
-    //         | "|=" | "^=" | "&="
+    // interface ConditionalExpression {
+    //     type: 'ConditionalExpression';
+    //     test: Expression;
+    //     consequent: Expression;
+    //     alternate: Expression;
     // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ConditionalExpr {
+        test: Box<Expr>,
+        consequent: Box<Expr>,
+        alternate: Box<Expr>
+    }
+
+    // interface YieldExpression {
+    //     type: 'YieldExpression';
+    //     argument: Expression | null;
+    //     delegate: boolean;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct YieldExpr {
+        argument: Option<Box<Expr>>,
+        delegate: bool,
+    }
+
+    // interface AssignmentExpression {
+    //     type: 'AssignmentExpression';
+    //     operator: '=' | '*=' | '**=' | '/=' | '%=' | '+=' | '-=' |
+    //         '<<=' | '>>=' | '>>>=' | '&=' | '^=' | '|=';
+    //     left: Expression;
+    //     right: Expression;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct AssignmentExpr {
+        operator: AssignmentOp,
+        left: Box<Expr>,
+        right: Box<Expr>
+    }
+
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum AssignmentOp {
         #[serde(rename="=")]
@@ -1010,14 +758,548 @@ pub mod jsast {
         AndAssign,
     }
 
-    // enum UpdateOperator {
-    //     "++" | "--"
+    // interface SequenceExpression {
+    //     type: 'SequenceExpression';
+    //     expressions: Expression[];
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    enum UpdateOp {
-        #[serde(rename="++")]
-        Inc,
-        #[serde(rename="++")]
-        Dec
+    struct SequenceExpr {
+        expressions: Vec<Expr>
     }
+
+
+    // type Statement = BlockStatement | BreakStatement | ContinueStatement |
+    //     DebuggerStatement | DoWhileStatement | EmptyStatement |
+    //     ExpressionStatement | ForStatement | ForInStatement |
+    //     ForOfStatement | FunctionDeclaration | IfStatement |
+    //     LabeledStatement | ReturnStatement | SwitchStatement |
+    //     ThrowStatement | TryStatement | VariableDeclaration |
+    //     WhileStatement | WithStatement;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
+    enum Stmt {
+        #[serde(rename="BlockStatement")]
+        Block(BlockStmt),
+
+        // interface BreakStatement {
+        //     type: 'BreakStatement';
+        //     label: Identifier | null;
+        // }
+        #[serde(rename="BreakStatement")]
+        Break{label: Option<Identifier>},
+
+        // interface ContinueStatement {
+        //     type: 'ContinueStatement';
+        //     label: Identifier | null;
+        // }
+        #[serde(rename="ContinueStatement")]
+        Continue{label: Option<Identifier>},
+
+        // interface DebuggerStatement {
+        //     type: 'DebuggerStatement';
+        // }
+        #[serde(rename="DebuggerStatement")]
+        Debugger,
+
+        // interface DoWhileStatement {
+        //     type: 'DoWhileStatement';
+        //     body: Statement;
+        //     test: Expression;
+        // }
+        #[serde(rename="DoWhileStatement")]
+        DoWhile{body: Box<Stmt>,
+                test: Expr},
+
+        // interface EmptyStatement {
+        //     type: 'EmptyStatement';
+        // }
+        #[serde(rename="EmptyStatement")]
+        Empty,
+
+        // interface ExpressionStatement {
+        //     type: 'ExpressionStatement';
+        //     expression: Expression;
+        //     directive?: string;
+        // }
+        #[serde(rename="ExpressionStatement")]
+        Expr{expression: Expr,
+            #[serde(skip_serializing_if = "Option::is_some")]
+            directive: Option<String>},
+
+        // interface ForStatement {
+        //     type: 'ForStatement';
+        //     init: Expression | VariableDeclaration | null;
+        //     test: Expression | null;
+        //     update: Expression | null;
+        //     body: Statement;
+        // }
+        #[serde(rename="ForStatement")]
+        For{init: Option<FotStmtInit>,
+            test: Option<Expr>,
+            update: Option<Expr>,
+            body: Box<Stmt>},
+
+        // interface ForInStatement {
+        //     type: 'ForInStatement';
+        //     left: Expression;
+        //     right: Expression;
+        //     body: Statement;
+        //     each: false; // TODO this must be constant false
+        // }
+        #[serde(rename="ForInStatement")]
+        ForIn{left: Expr, right: Expr, body: Box<Stmt>, each: bool},
+
+        // interface ForOfStatement {
+        //     type: 'ForOfStatement';
+        //     left: Expression;
+        //     right: Expression;
+        //     body: Statement;
+        // }
+        #[serde(rename="ForOfStatement")]
+        ForOf{left: Expr, right: Expr, body: Box<Stmt>},
+
+        #[serde(rename="FunctionDeclaration")]
+        Function(FunctionDecl),
+
+        // interface IfStatement {
+        //     type: 'IfStatement';
+        //     test: Expression;
+        //     consequent: Statement;
+        //     alternate?: Statement;
+        // }
+        #[serde(rename="IfStatement")]
+        If{test: Expr,
+           consequent: Box<Stmt>,
+           alternate: Option<Box<Stmt>>},
+
+        //  interface LabeledStatement {
+        //     type: 'LabeledStatement';
+        //     label: Identifier;
+        //     body: Statement;
+        // }
+        #[serde(rename="LabeledStatement")]
+        Labled{
+             #[serde(serialize_with="serialize_ident_as_obj")]
+             label: Identifier,
+             body: Box<Stmt>},
+
+        // interface ReturnStatement {
+        //  type: 'ReturnStatement';
+        //  argument: Expression | null;
+        // }
+        #[serde(rename="ReturnStmt")]
+        Return{argument:Option<Expr>},
+
+        // interface SwitchStatement {
+        //     type: 'SwitchStatement';
+        //     discriminant: Expression;
+        //     cases: SwitchCase[];
+        // }
+        #[serde(rename="SwitchStatement")]
+        Switch{discriminant: Expr, cases: Vec<SwitchCase>},
+
+        // interface ThrowStatement {
+        //     type: 'ThrowStatement';
+        //     argument: Expression;
+        // }
+        #[serde(rename="ThrowStatement")]
+        Throw{argument: Expr},
+
+        // interface TryStatement {
+        //     type: 'TryStatement';
+        //     block: BlockStatement;
+        //     handler: CatchClause | null;
+        //     finalizer: BlockStatement | null;
+        // }
+        #[serde(rename="TryStatement")]
+        Try{block: BlockStmt,
+            handler: Option<CatchClause>,
+            #[serde(serialize_with="blockstmt_as_obj")]
+            finalizer: Option<BlockStmt>},
+
+        #[serde(rename="VariableDeclaration")]
+        VarDecl(VariableDecl),
+
+        // interface WhileStatement {
+        //     type: 'WhileStatement';
+        //     test: Expression;
+        //     body: Statement;
+        // }
+        #[serde(rename="WhileStatement")]
+        While{test: Expr, body: Box<Stmt>},
+
+        // interface WithStatement {
+        //     type: 'WithStatement';
+        //     object: Expression;
+        //     body: Statement;
+        // }
+        #[serde(rename="WithStatement")]
+        With{object: Expr, body: Box<Stmt>}
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    // #[serde(untagged)]
+    enum FotStmtInit {
+        Expr(Expr),
+        // TODO as obj
+        VarDecl(VariableDecl),
+    }
+
+    // interface SwitchCase {
+    //     type: 'SwitchCase';
+    //     test: Expression | null;
+    //     consequent: Statement[];
+    // }
+    // TODO as obj
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct SwitchCase {
+        test: Option<Expr>,
+        consequent: Vec<Stmt>
+    }
+
+    // interface CatchClause {
+    //     type: 'CatchClause';
+    //     param: Identifier | BindingPattern;
+    //     body: BlockStatement;
+    // }
+    // TODO as obj
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct CatchClause {
+        param: IdentOrPattern,
+        body: BlockStmt,
+    }
+
+
+    #[test]
+    fn test_stmt_se_de() {
+        check_se_de(Stmt::Block(BlockStmt{body: vec![
+                                            StmtListItem::Stmt(Stmt::Block(
+                                                BlockStmt{body: vec![]}))
+                    ]}),
+                    json!({"type": "BlockStatement", "body": [
+                                        {"type": "BlockStatement", "body": []}]}));
+        check_se_de(Stmt::Break{label: None},
+                    json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct BlockStmt {
+        body: Vec<StmtListItem>
+    }
+
+    fn blockstmt_as_obj<S>(block: &BlockStmt, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        let mut state = s.serialize_struct("BlockStmt", 2)?;
+        state.serialize_field("type", "BlockStatement")?;
+        state.serialize_field("body", &block.body)?;
+        state.end()
+    }
+
+
+    // type Declaration = ClassDeclaration | FunctionDeclaration |  VariableDeclaration;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
+    enum Decl {
+        #[serde(rename="ClassDeclaration")]
+        Class(ClassDecl),
+        #[serde(rename="FunctionDeclaration")]
+        Function,
+        #[serde(rename="VariableDeclaration")]
+        Variable(VariableDecl),
+    }
+
+    #[test]
+    fn tetst_decl_se_de() {
+        check_se_de(Decl::Class(ClassDecl{id: Some(Identifier{name: "TestClass".into()}),
+                                         super_class: None,
+                                         body: ClassBody{body: vec![
+                                             MethodDef {
+                                                key: Some(Expr::Ident(Identifier{name: "func1".into()})),
+                                                computed: false,
+                                                // value:
+                                                kind: MethodDefKind::Method,
+                                                stat: false
+                                             }
+                                         ]}}),
+                    json!({"type": "ClassDeclaration",
+                            "id": {
+                                "type": "Identifier",
+                                "name": "TestClass"
+                            },
+                            "superClass": serde_json::Value::Null,
+                            "body": {
+                                "type": "ClassBody",
+                                "body": [
+                                    {
+                                        "type": "MethodDefinition",
+                                        "key": {
+                                            "type": "Identifier",
+                                            "name": "func1"
+                                        },
+                                        "computed": false,
+                                        // "value": {
+                                        //     "type": "FunctionExpression",
+                                        //     "id": null,
+                                        //     "params": [],
+                                        //     "body": {
+                                        //         "type": "BlockStatement",
+                                        //         "body": []
+                                        //     },
+                                        //     "generator": false,
+                                        //     "expression": false,
+                                        //     "async": false
+                                        // },
+                                        "kind": "method",
+                                        "static": false
+                                    }
+                                ]
+                            }
+                        }));
+    }
+
+    // interface ClassDeclaration {
+    //     type: 'ClassDeclaration';
+    //     id: Identifier | null;
+    //     superClass: Identifier | null;
+    //     body: ClassBody;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ClassDecl {
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        id: Option<Identifier>,
+        #[serde(rename="superClass")]
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        super_class: Option<Identifier>,
+        #[serde(serialize_with="serialize_classbody_as_obj")]
+        body: ClassBody,
+    }
+
+    fn serialize_classbody_as_obj<S>(cb: &ClassBody, s: S) -> Result<S::Ok, S::Error>
+        where S: Serializer {
+        let mut state = s.serialize_struct("ClassBody", 2)?;
+        state.serialize_field("type", "ClassBody".into())?;
+        state.serialize_field("body", &cb.body)?;
+        state.end()
+    }
+
+    // interface ClassBody {
+    //     type: 'ClassBody';
+    //     body: MethodDefinition[];
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ClassBody {
+        body: Vec<MethodDef>
+    }
+
+    // interface MethodDefinition {
+    //     type: 'MethodDefinition';
+    //     key: Expression | null;
+    //     computed: boolean;
+    //     value: FunctionExpression | null;
+    //     kind: 'method' | 'constructor';
+    //     static: boolean;
+    // }
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct MethodDef {
+        key: Option<Expr>,
+        computed: bool,
+        // value: Option<FunctionExpr>, TODO as obj
+        kind: MethodDefKind,
+        #[serde(rename="static")]
+        stat: bool
+    }
+
+    impl serde::Serialize for MethodDef {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+            let mut state = serializer.serialize_struct("MethodDef", 5)?;
+            state.serialize_field("type", "MethodDefinition")?;
+            state.serialize_field("key", &self.key)?;
+            state.serialize_field("computed", &self.computed)?;
+            state.serialize_field("kind", &self.kind)?;
+            state.serialize_field("static", &self.stat)?;
+            state.end()
+        }
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum MethodDefKind {
+        #[serde(rename="method")]
+        Method,
+        #[serde(rename="constructor")]
+        Constructor
+    }
+
+    // interface FunctionDeclaration {
+    //     type: 'FunctionDeclaration';
+    //     id: Identifier | null;
+    //     params: FunctionParameter[];
+    //     body: BlockStatement;
+    //     generator: boolean;
+    //     async: boolean;
+    //     expression: false;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct FunctionDecl {
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        id: Option<Identifier>,
+        params: Vec<FunctionParam>,
+        body: BlockStmt, // TODO as obj
+        generator: bool,
+        async: bool,
+        expression: bool, // TODO This must be constant false
+    }
+
+    // interface VariableDeclaration {
+    //     type: 'VariableDeclaration';
+    //     declarations: VariableDeclarator[];
+    //     kind: 'var' | 'const' | 'let';
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct VariableDecl {
+        declarations: Vec<VariableDeclarator>,
+        kind: VariableDeclKind,
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
+    enum VariableDeclKind {
+        #[serde(rename="var")]
+        Var,
+        #[serde(rename="const")]
+        Const,
+        #[serde(rename="let")]
+        Let
+    }
+
+    // interface VariableDeclarator {
+    //     type: 'VariableDeclarator';
+    //     id: Identifier | BindingPattern;
+    //     init: Expression | null;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct VariableDeclarator {
+        id: IdentOrPattern,
+        init: Option<Expr>
+    }
+
+
+
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Program {
+        body: ProgramType
+    }
+
+    impl serde::Serialize for Program {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+            let mut state = serializer.serialize_struct("Color", 3)?;
+            state.serialize_field("type", "Program")?;
+            state.serialize_field("sourceType", match self.body {
+                ProgramType::Script(_) => "script",
+                ProgramType::Module(_) => "module",
+            })?;
+            state.serialize_field("body", &self.body)?;
+            state.end()
+        }
+    }
+
+    #[test]
+    fn test_progman_se_de() {
+        check_se_de(Program{body: ProgramType::Script(vec![])},
+                    json!({"type": "Program",
+                            "sourceType": "script",
+                            "body": []}));
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum ProgramType {
+        Script(Vec<StmtListItem>),
+        Module(ModuleItem)
+    }
+
+    // type StatementListItem = Declaration | Statement;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum StmtListItem {
+        Decl(Decl),
+        Stmt(Stmt),
+    }
+
+    // type ModuleItem = ImportDeclaration | ExportDeclaration | StatementListItem;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    enum ModuleItem {
+        // type ImportDeclaration {
+        //     type: 'ImportDeclaration';
+        //     specifiers: ImportSpecifier[];
+        //     source: Literal;
+        // }
+        Import{specifiers: Vec<ImportSpecifier>, source: Literal},
+        Export(ExportDecl),
+        Stmts(StmtListItem)
+    }
+
+    // interface ImportSpecifier {
+    //     type: 'ImportSpecifier' | 'ImportDefaultSpecifier' | 'ImportNamespaceSpecifier';
+    //     local: Identifier;
+    //     imported?: Identifier;
+    // }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ImportSpecifier {
+        // local:
+    }
+
+    // type ExportDeclaration = ExportAllDeclaration | ExportDefaultDeclaration | ExportNamedDeclaration;
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(tag="type")]
+    enum ExportDecl {
+        // interface ExportAllDeclaration {
+        //     type: 'ExportAllDeclaration';
+        //     source: Literal;
+        // }
+        ExportAll{source: Literal},
+
+
+        // interface ExportDefaultDeclaration {
+        //     type: 'ExportDefaultDeclaration';
+        //     declaration: Identifier | BindingPattern | ClassDeclaration | Expression | FunctionDeclaration;
+        // }
+        ExportDefault{declaration: ExportDefaultDeclKind},
+
+
+        // interface ExportNamedDeclaration {
+        //     type: 'ExportNamedDeclaration';
+        //     declaration: ClassDeclaration | FunctionDeclaration | VariableDeclaration;
+        //     specifiers: ExportSpecifier[];
+        //     source: Literal;
+        // }
+        ExportNamed{decleration: Decl,
+                    specifiers: Vec<ExportSpecifier>,
+                    source: Literal}
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(untagged)]
+    enum ExportDefaultDeclKind {
+        Ident(Identifier),
+        Binding(BindingPattern),
+        Class(ClassDecl),
+        Expr(Expr),
+        Function(FunctionDecl)
+    }
+
+    // interface ExportSpecifier {
+    //     type: 'ExportSpecifier';
+    //     exported: Identifier;
+    //     local: Identifier;
+    // };
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct ExportSpecifier {
+        #[serde(serialize_with="serialize_ident_as_obj")]
+        exported: Identifier,
+        #[serde(serialize_with="serialize_ident_as_obj")]
+        local: Identifier
+    }
+
+
 }
