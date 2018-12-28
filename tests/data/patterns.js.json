@@ -1,0 +1,173 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "ObjectPattern",
+                        "properties": [
+                            {
+                                "type": "Property",
+                                "key": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "computed": false,
+                                "value": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "kind": "init",
+                                "method": false,
+                                "shorthand": true
+                            },
+                            {
+                                "type": "Property",
+                                "key": {
+                                    "type": "Identifier",
+                                    "name": "y"
+                                },
+                                "computed": false,
+                                "value": {
+                                    "type": "Identifier",
+                                    "name": "y"
+                                },
+                                "kind": "init",
+                                "method": false,
+                                "shorthand": true
+                            }
+                        ]
+                    },
+                    "init": {
+                        "type": "ObjectExpression",
+                        "properties": [
+                            {
+                                "type": "Property",
+                                "key": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "computed": false,
+                                "value": {
+                                    "type": "Literal",
+                                    "value": 0,
+                                    "raw": "0"
+                                },
+                                "kind": "init",
+                                "method": false,
+                                "shorthand": false
+                            },
+                            {
+                                "type": "Property",
+                                "key": {
+                                    "type": "Identifier",
+                                    "name": "y"
+                                },
+                                "computed": false,
+                                "value": {
+                                    "type": "Literal",
+                                    "value": 1,
+                                    "raw": "1"
+                                },
+                                "kind": "init",
+                                "method": false,
+                                "shorthand": false
+                            }
+                        ]
+                    }
+                }
+            ],
+            "kind": "var"
+        },
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "ArrayPattern",
+                        "elements": [
+                            {
+                                "type": "Identifier",
+                                "name": "head"
+                            },
+                            {
+                                "type": "RestElement",
+                                "argument": {
+                                    "type": "Identifier",
+                                    "name": "tail"
+                                }
+                            }
+                        ]
+                    },
+                    "init": {
+                        "type": "ArrayExpression",
+                        "elements": [
+                            {
+                                "type": "Literal",
+                                "value": 1,
+                                "raw": "1"
+                            },
+                            {
+                                "type": "Literal",
+                                "value": 2,
+                                "raw": "2"
+                            },
+                            {
+                                "type": "Literal",
+                                "value": 3,
+                                "raw": "3"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "kind": "var"
+        },
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "ObjectPattern",
+                        "properties": [
+                            {
+                                "type": "Property",
+                                "key": {
+                                    "type": "Identifier",
+                                    "name": "x"
+                                },
+                                "computed": false,
+                                "value": {
+                                    "type": "AssignmentPattern",
+                                    "left": {
+                                        "type": "Identifier",
+                                        "name": "x"
+                                    },
+                                    "right": {
+                                        "type": "Literal",
+                                        "value": 3,
+                                        "raw": "3"
+                                    }
+                                },
+                                "kind": "init",
+                                "method": false,
+                                "shorthand": true
+                            }
+                        ]
+                    },
+                    "init": {
+                        "type": "ObjectExpression",
+                        "properties": []
+                    }
+                }
+            ],
+            "kind": "var"
+        }
+    ],
+    "sourceType": "script"
+}

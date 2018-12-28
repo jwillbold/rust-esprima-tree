@@ -1,0 +1,113 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "ImportDeclaration",
+            "specifiers": [],
+            "source": {
+                "type": "Literal",
+                "value": "mypackage.js",
+                "raw": "'mypackage.js'"
+            }
+        },
+        {
+            "type": "ImportDeclaration",
+            "specifiers": [
+                {
+                    "type": "ImportDefaultSpecifier",
+                    "local": {
+                        "type": "Identifier",
+                        "name": "defaults"
+                    }
+                }
+            ],
+            "source": {
+                "type": "Literal",
+                "value": "mypackage.js",
+                "raw": "'mypackage.js'"
+            }
+        },
+        {
+            "type": "ImportDeclaration",
+            "specifiers": [
+                {
+                    "type": "ImportSpecifier",
+                    "local": {
+                        "type": "Identifier",
+                        "name": "athing"
+                    },
+                    "imported": {
+                        "type": "Identifier",
+                        "name": "athing"
+                    }
+                }
+            ],
+            "source": {
+                "type": "Literal",
+                "value": "mypackage.js",
+                "raw": "'mypackage.js'"
+            }
+        },
+        {
+            "type": "ImportDeclaration",
+            "specifiers": [
+                {
+                    "type": "ImportNamespaceSpecifier",
+                    "local": {
+                        "type": "Identifier",
+                        "name": "ns"
+                    }
+                }
+            ],
+            "source": {
+                "type": "Literal",
+                "value": "mypackage.js",
+                "raw": "'mypackage.js'"
+            }
+        },
+        {
+            "type": "ExportAllDeclaration",
+            "source": {
+                "type": "Literal",
+                "value": "mypackage.js",
+                "raw": "'mypackage.js'"
+            }
+        },
+        {
+            "type": "ExportNamedDeclaration",
+            "declaration": {
+                "type": "FunctionDeclaration",
+                "id": {
+                    "type": "Identifier",
+                    "name": "FunctionName"
+                },
+                "params": [],
+                "body": {
+                    "type": "BlockStatement",
+                    "body": []
+                },
+                "generator": false,
+                "expression": false,
+                "async": false
+            },
+            "specifiers": [],
+            "source": null
+        },
+        {
+            "type": "ExportDefaultDeclaration",
+            "declaration": {
+                "type": "FunctionDeclaration",
+                "id": null,
+                "params": [],
+                "body": {
+                    "type": "BlockStatement",
+                    "body": []
+                },
+                "generator": false,
+                "expression": false,
+                "async": false
+            }
+        }
+    ],
+    "sourceType": "module"
+}
