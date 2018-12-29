@@ -46,13 +46,13 @@ pub enum Expr {
     Function(FunctionExpr),
 
     #[serde(rename="ArrowFunctionExpression")]
-    ArrowFunc(ArrowFuncExpr), // TODO test
+    ArrowFunc(ArrowFuncExpr),
 
     #[serde(rename="ArrowFunctionExpression")]
     Class(ClassExpr), // TODO test
 
     #[serde(rename="TaggedTemplateExpression")]
-    TaggedTemplate, // (TaggedTemplateExpr) TODO
+    TaggedTemplate(TaggedTemplateExpr), // TODO test
 
     // interface MemberExpression {
     //     type: 'MemberExpression';
@@ -177,7 +177,7 @@ pub enum Expr {
         test: Box<Expr>,
         consequent: Box<Expr>,
         alternate: Box<Expr>
-    }, // TODO test
+    },
 
     // interface YieldExpression {
     //     type: 'YieldExpression';
@@ -202,7 +202,7 @@ pub enum Expr {
         operator: AssignmentOp,
         left: Box<Expr>,
         right: Box<Expr>
-    }, // TODO test
+    },
 
     // interface SequenceExpression {
     //     type: 'SequenceExpression';
@@ -211,112 +211,21 @@ pub enum Expr {
     #[serde(rename="SequenceExpression")]
     Sequence{
         expressions: Vec<Expr>
-    } // TODO test
+    }
 }
 
-#[test]
-fn test_expr_se_de() {
-    check_se_de(Expr::This, json!({"type": "ThisExpression"}));
-    check_se_de(Expr::Ident(Identifier{name: "test".into()}),
-                json!({"type": "Identifier", "name": "test"}));
-    check_se_de(Expr::Literal(Literal{value: LiteralKind::Bool(false),
-                                      raw: "false".into(),
-                                      regex: None}),
-                json!({"type": "Literal", "value": false, "raw": "false"}));
-    // TODO
-    // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
-    //                                  raw: "/.*/g".into(),
-    //                                  regex: Some(LiteralRegex{pattern: ".*".into(),
-    //                                                           flags: "g".into()})}),
-    //             json!({"type": "Literal",
-    //                     "value": "/.*/g",
-    //                     "raw": "/.*/g",
-    //                     "regex": {"pattern": ".*", "flags": "g"}}));
-
-    check_se_de(Expr::Array{elements: vec![
-                        ArrayExprElement::Expr(
-                            Expr::Literal(
-                                Literal{value: LiteralKind::Num(0.0),
-                                                raw: "0".into(),
-                                                regex: None}
-                    ))]},
-                json!({"type": "ArrayExpression",
-                        "elements": [ {
-                                "type": "Literal",
-                                "value": 0.0,
-                                "raw": "0"
-                            }]
-                        }));
-
-    check_se_de(Expr::Object{properties: vec![Property{
-                                                    key: Expr::Ident(Identifier{
-                                                    name: "ArrowRight".into()}),
-                                                    computed: false,
-                                                    value: Some(Expr::This),
-                                                    kind: PropertyKind::Init,
-                                                    shorthand: false}]},
-                json!({"type": "ObjectExpression", "properties": [
-                                                        {"type": "Property",
-                                                            "key": {
-                                                                "type": "Identifier",
-                                                                "name": "ArrowRight"
-                                                            },
-                                                            "computed": false,
-                                                            "value": {
-                                                                "type": "ThisExpression"
-                                                            },
-                                                            "kind": "init",
-                                                            "method": false,
-                                                            "shorthand": false}]}));
-
-    check_se_de(Expr::Function(FunctionExpr{id: None,
-                                             params: vec![],
-                                             body: BlockStmt{body: vec![]},
-                                             generator: false,
-                                             expression: false,
-                                             async: false}),
-                json!({"type": "FunctionExpression",
-                        "id": null,
-                        "params": [],
-                        "body": {
-                            "type": "BlockStatement",
-                            "body": []
-                        },
-                        "generator": false,
-                        "expression": false,
-                        "async": false
-                    }));
-
-    check_se_de(Expr::Member{computed: false,
-                                        object: Box::new(Expr::This),
-                                        property: Box::new(Expr::Ident(Identifier{name: "snake".into()}))},
-                json!({"type": "MemberExpression",
-                            "computed": false,
-                            "object": {
-                                "type": "ThisExpression"
-                            },
-                            "property": {
-                                "type": "Identifier",
-                                "name": "snake"
-                            }}));
-
-    check_se_de(Expr::New{callee: Box::new(Expr::This), arguments: vec![]},
-                json!({"type": "NewExpression",
-                        "callee": {"type": "ThisExpression"},
-                        "arguments": []}));
-
-    check_se_de(Expr::Update{operator: UpdateOp::Inc,
-                                        argument: Box::new(Expr::This),
-                                        prefix: false},
-                json!({"type": "UpdateExpression",
-                        "operator": "++",
-                        "argument": {"type": "ThisExpression"},
-                        "prefix": false}));
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Identifier {
     pub name: String
+}
+
+type Id = Identifier;
+
+impl Identifier {
+    fn new(s: &str) -> Self {
+        Identifier{name: s.into()}
+    }
 }
 
 pub fn serialize_ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
@@ -371,21 +280,84 @@ pub struct Literal {
     pub regex: Option<LiteralRegex>
 }
 
+type Lit = Literal;
+
+impl Literal {
+    fn newf(f: f64) -> Self {
+        Literal {
+            value: LiteralKind::Num(f),
+            raw: f.to_string(),
+            regex: None,
+
+        }
+    }
+}
+
+macro_rules! derive_private_shadow_struct {
+    (pub struct $si:ident {
+        $(pub $f:ident: $t:ty,)*
+    }, $pst:ident, $tof:ident) => {
+        pub struct $si {
+            $(
+                pub $f: $t
+            )*
+        }
+
+        #[derive(Serialize)]
+        #[serde(tag="type", rename="Literal")]
+        struct $pst<'a> {
+            $(
+                $f: &'a$t
+            )*
+        }
+    }
+}
+
+derive_private_shadow_struct!{
+    pub struct Test {
+        pub a: u64,
+    },
+    PrivateTestShadow
+}
+
+pub fn test_as_obj<S>(lit: &Test, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+
+    PrivateTestShadow {
+        a: &lit.a
+    }.serialize(s)
+}
+
 pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
-    let field_count = match lit.regex {
-        Some(_) => 3,
-        None => 2,
-    };
-    let mut state = s.serialize_struct("Literal", field_count)?;
-    state.serialize_field("type", "Literal")?;
-    state.serialize_field("value", &lit.value)?;
-    state.serialize_field("raw", &lit.raw)?;
-    if let Some(ref x) = &lit.regex {
-        state.serialize_field("regex", x)?;
+    // let field_count = match lit.regex {
+    //     Some(_) => 3,
+    //     None => 2,
+    // };
+    // let mut state = s.serialize_struct("Literal", field_count)?;
+    // state.serialize_field("type", "Literal")?;
+    // state.serialize_field("value", &lit.value)?;
+    // state.serialize_field("raw", &lit.raw)?;
+    // if let Some(ref x) = &lit.regex {
+    //     state.serialize_field("regex", x)?;
+    // }
+    //
+    // state.end()
+
+    #[derive(Serialize)]
+    #[serde(tag="type", rename="Literal")]
+    struct PrivateLiteral<'a> {
+        pub value: &'a LiteralKind,
+        pub raw: &'a String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub regex: &'a Option<LiteralRegex>
     }
 
-    state.end()
+    PrivateLiteral {
+        value: &lit.value,
+        raw: &lit.raw,
+        regex: &lit.regex,
+    }.serialize(s)
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -409,7 +381,6 @@ pub struct LiteralRegex {
 #[serde(untagged)]
 pub enum ArrayExprElement {
     Expr(Expr),
-    #[serde(serialize_with="spreadelement_as_obj")]
     Spread(SpreadElement)
 }
 
@@ -488,7 +459,6 @@ pub struct FunctionExpr {
 //     state.serialize_field("async", &func.async)?;
 //     state.serialize_field("expression", &func.expression)?;
 //     state.end()
-//
 // }
 
 // type FunctionParameter = AssignmentPattern | Identifier | BindingPattern;
@@ -524,6 +494,7 @@ pub struct ArrowFuncExpr {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
 pub enum ArrowFuncExprBody {
     #[serde(serialize_with="blockstmt_as_obj")]
     Block(BlockStmt),
@@ -543,7 +514,17 @@ type ClassExpr = ClassDecl;
 //     readonly tag: Expression;
 //     readonly quasi: TemplateLiteral;
 // }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct TaggedTemplateExpr {
+    pub tag: Box<Expr>,
+    pub quasi: TemplateLiteral
+}
+
 // TODO
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct TemplateLiteral {
+
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum CallExprCallee {
@@ -560,7 +541,6 @@ pub enum CallExprCallee {
 #[serde(untagged)]
 pub enum ArgumentListElement {
     Expr(Box<Expr>),
-    #[serde(serialize_with="spreadelement_as_obj")]
     Spread(SpreadElement),
 }
 
@@ -569,17 +549,11 @@ pub enum ArgumentListElement {
 //     argument: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct SpreadElement {
     pub argument: Box<Expr>
 }
 
-pub fn spreadelement_as_obj<S>(spread: &SpreadElement, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    let mut state = s.serialize_struct("SpreadElement", 2)?;
-    state.serialize_field("type", "SpreadElement")?;
-    state.serialize_field("argument", &spread.argument)?;
-    state.end()
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum UpdateOp {
@@ -688,4 +662,215 @@ pub enum AssignmentOp {
     XorAssign,
     #[serde(rename="&=")]
     AndAssign,
+}
+
+#[test]
+fn test_expr_se_de() {
+    check_se_de(Expr::This, json!({"type": "ThisExpression"}));
+    check_se_de(Expr::Ident(Identifier{name: "test".into()}),
+                json!({"type": "Identifier", "name": "test"}));
+    check_se_de(Expr::Literal(Literal{value: LiteralKind::Bool(false),
+                                      raw: "false".into(),
+                                      regex: None}),
+                json!({"type": "Literal", "value": false, "raw": "false"}));
+    // TODO
+    // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
+    //                                  raw: "/.*/g".into(),
+    //                                  regex: Some(LiteralRegex{pattern: ".*".into(),
+    //                                                           flags: "g".into()})}),
+    //             json!({"type": "Literal",
+    //                     "value": "/.*/g",
+    //                     "raw": "/.*/g",
+    //                     "regex": {"pattern": ".*", "flags": "g"}}));
+
+    check_se_de(Expr::Array{elements: vec![
+                        ArrayExprElement::Expr(
+                            Expr::Literal(
+                                Literal{value: LiteralKind::Num(0.0),
+                                                raw: "0".into(),
+                                                regex: None}
+                    ))]},
+                json!({"type": "ArrayExpression",
+                        "elements": [ {
+                                "type": "Literal",
+                                "value": 0.0,
+                                "raw": "0"
+                            }]
+                        }));
+
+    check_se_de(Expr::Object{properties: vec![Property{
+                                                    key: Expr::Ident(Identifier{
+                                                    name: "ArrowRight".into()}),
+                                                    computed: false,
+                                                    value: Some(Expr::This),
+                                                    kind: PropertyKind::Init,
+                                                    shorthand: false}]},
+                json!({"type": "ObjectExpression", "properties": [
+                                                        {"type": "Property",
+                                                            "key": {
+                                                                "type": "Identifier",
+                                                                "name": "ArrowRight"
+                                                            },
+                                                            "computed": false,
+                                                            "value": {
+                                                                "type": "ThisExpression"
+                                                            },
+                                                            "kind": "init",
+                                                            "method": false,
+                                                            "shorthand": false}]}));
+
+    check_se_de(Expr::Function(FunctionExpr{id: None,
+                                             params: vec![],
+                                             body: BlockStmt{body: vec![]},
+                                             generator: false,
+                                             expression: false,
+                                             async: false}),
+                json!({"type": "FunctionExpression",
+                        "id": null,
+                        "params": [],
+                        "body": {
+                            "type": "BlockStatement",
+                            "body": []
+                        },
+                        "generator": false,
+                        "expression": false,
+                        "async": false
+                    }));
+
+    // Arrow function expression
+    check_se_de(
+        Stmt::Expr{expression: Expr::ArrowFunc(ArrowFuncExpr{
+                id: None,
+                params: vec![
+                    FunctionParam::Ident(Identifier{name: "a".into()})
+                ],
+                body: ArrowFuncExprBody::Expr(Box::new(Expr::Update{
+                    operator: UpdateOp::Inc,
+                    argument: Box::new(Expr::Ident(Identifier{name: "a".into()})),
+                    prefix: false,
+                })),
+                generator: false,
+                async: false,
+                expression: true,
+            }),
+            directive: None
+        },
+        json!({
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "ArrowFunctionExpression",
+                "id": null,
+                "params": [
+                    {
+                        "type": "Identifier",
+                        "name": "a"
+                    }
+                ],
+                "body": {
+                    "type": "UpdateExpression",
+                    "operator": "++",
+                    "argument": {
+                        "type": "Identifier",
+                        "name": "a"
+                    },
+                    "prefix": false
+                },
+                "generator": false,
+                "expression": true,
+                "async": false
+            }
+        }));
+
+    check_se_de(Expr::Member{computed: false,
+                                        object: Box::new(Expr::This),
+                                        property: Box::new(Expr::Ident(Identifier{name: "snake".into()}))},
+                json!({"type": "MemberExpression",
+                            "computed": false,
+                            "object": {
+                                "type": "ThisExpression"
+                            },
+                            "property": {
+                                "type": "Identifier",
+                                "name": "snake"
+                            }}));
+
+    check_se_de(Expr::New{callee: Box::new(Expr::This), arguments: vec![]},
+                json!({"type": "NewExpression",
+                        "callee": {"type": "ThisExpression"},
+                        "arguments": []}));
+
+    check_se_de(Expr::Update{operator: UpdateOp::Inc,
+                                        argument: Box::new(Expr::This),
+                                        prefix: false},
+                json!({"type": "UpdateExpression",
+                        "operator": "++",
+                        "argument": {"type": "ThisExpression"},
+                        "prefix": false}));
+
+    // Conditional expression
+    check_se_de(Expr::Conditional{
+            test: Box::new(Expr::Ident(Id::new("a"))),
+            consequent: Box::new(Expr::Literal(Lit::newf(0.0))),
+            alternate: Box::new(Expr::Literal(Lit::newf(1.0)))
+        },
+        json!({
+                "type": "ConditionalExpression",
+                "test": {
+                    "type": "Identifier",
+                    "name": "a"
+                },
+                "consequent": {
+                    "type": "Literal",
+                    "value": 0.0, // TODO
+                    "raw": "0"
+                },
+                "alternate": {
+                    "type": "Literal",
+                    "value": 1.0, // TODO
+                    "raw": "1"
+                }
+        }));
+
+    // Assignment expression
+    check_se_de(Expr::Assignment{
+            operator: AssignmentOp::Assign,
+            left: Box::new(Expr::Ident(Identifier{name: "i".into()})),
+            right: Box::new(Expr::Literal(Literal{
+                value: LiteralKind::Num(0.0),
+                raw: "0.0".into(),
+                regex: None
+            }))
+        },
+        json!({
+                "type": "AssignmentExpression",
+                "operator": "=",
+                "left": {
+                    "type": "Identifier",
+                    "name": "i"
+                },
+                "right": {
+                    "type": "Literal",
+                    "value": 0.0, // TODO this hould be just 0 not 0.0
+                    "raw": "0.0"
+                }
+            }));
+
+    // Sequence expression
+    check_se_de(Expr::Sequence{expressions: vec![
+            Expr::Ident(Identifier{name: "a".into()}),
+            Expr::Ident(Identifier{name: "b".into()}),
+        ]},
+        json!({
+                "type": "SequenceExpression",
+                "expressions": [
+                    {
+                        "type": "Identifier",
+                        "name": "a"
+                    },
+                    {
+                        "type": "Identifier",
+                        "name": "b"
+                    }
+                ]
+        }));
 }
