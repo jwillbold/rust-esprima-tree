@@ -48,11 +48,12 @@ pub enum Expr {
     #[serde(rename="ArrowFunctionExpression")]
     ArrowFunc(ArrowFuncExpr),
 
-    #[serde(rename="ArrowFunctionExpression")]
-    Class(ClassExpr), // TODO test
+    #[serde(rename="ClassExpression")]
+    Class(ClassExpr),
 
+    // TODO test
     #[serde(rename="TaggedTemplateExpression")]
-    TaggedTemplate(TaggedTemplateExpr), // TODO test
+    TaggedTemplate(TaggedTemplateExpr),
 
     // interface MemberExpression {
     //     type: 'MemberExpression';
@@ -69,6 +70,7 @@ pub enum Expr {
 
     Super,
 
+    // TODO test
     // interface MetaProperty {
     //     type: 'MetaProperty';
     //     meta: Identifier;
@@ -78,7 +80,7 @@ pub enum Expr {
     MetaProperty{
         meta: Identifier,
         property: Identifier
-    }, // TODO test
+    },
 
     // interface NewExpression {
     //     type: 'NewExpression';
@@ -99,8 +101,8 @@ pub enum Expr {
     #[serde(rename="CallExpression")]
     Call{
         callee: CallExprCallee,
-        argument: Vec<ArgumentListElement>
-    }, // TODO test
+        arguments: Vec<ArgumentListElement>
+    },
 
     // interface UpdateExpression {
     //     type: 'UpdateExpression';
@@ -115,6 +117,7 @@ pub enum Expr {
         prefix: bool
     },
 
+     // TODO test
     // interface AwaitExpression {
     //     type: 'AwaitExpression';
     //     argument: Expression;
@@ -122,7 +125,7 @@ pub enum Expr {
     #[serde(rename="AwaitExpression")]
     Await{
         argument: Box<Expr>
-    }, // TODO test
+    },
 
     // interface UnaryExpression {
     //     type: 'UnaryExpression';
@@ -136,7 +139,7 @@ pub enum Expr {
         argument: Box<Expr>,
         // TODO: true
         prefix: bool
-    }, // TODO test
+    },
 
     // interface BinaryExpression {
     //     type: 'BinaryExpression';
@@ -151,7 +154,7 @@ pub enum Expr {
         operator: BinaryOp,
         left: Box<Expr>,
         right: Box<Expr>
-    }, // TODO test
+    },
 
     // interface LogicalExpression {
     //     type: 'LogicalExpression';
@@ -164,7 +167,7 @@ pub enum Expr {
         operator: LogicalOp,
         left: Box<Expr>,
         right: Box<Expr>
-    }, // TODO test
+    },
 
     // interface ConditionalExpression {
     //     type: 'ConditionalExpression';
@@ -179,6 +182,7 @@ pub enum Expr {
         alternate: Box<Expr>
     },
 
+    // TODO test
     // interface YieldExpression {
     //     type: 'YieldExpression';
     //     argument: Expression | null;
@@ -188,7 +192,7 @@ pub enum Expr {
     Yield {
         argument: Option<Box<Expr>>,
         delegate: bool,
-    }, // TODO test
+    },
 
     // interface AssignmentExpression {
     //     type: 'AssignmentExpression';
@@ -244,15 +248,6 @@ pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result
     }
 }
 
-// fn serialize_as_opt<S, T>(obj: &Option<T>, s: S)  -> Result<S::Ok, S::Error>
-//     where S: Serializer {
-//     match *obj {
-//         Some(x) => T(x, s),
-//         None => s.serialize_none()
-//     }
-// }
-
-
 // fn serialize_as_opt<T, S>(f: &'static  &Fn(&T, S) -> Result<S::Ok, S::Error>)
 //     -> impl Fn(&Option<T>, S) -> Result<S::Ok, S::Error>
 //     where S: Serializer {
@@ -293,57 +288,46 @@ impl Literal {
     }
 }
 
-macro_rules! derive_private_shadow_struct {
-    (pub struct $si:ident {
-        $(pub $f:ident: $t:ty,)*
-    }, $pst:ident, $tof:ident) => {
-        pub struct $si {
-            $(
-                pub $f: $t
-            )*
-        }
+// macro_rules! derive_private_shadow_struct {
+//     (pub struct $si:ident {
+//         $(pub $f:ident: $t:ty,)*
+//     }, $tof:ident) => {
+//         pub struct $si {
+//             $(
+//                 pub $f: $t
+//             )*
+//         }
+//
+//         pub fn $tof<S>(t: $si, s: S) -> Result<S::Ok, S::Error>
+//             where S: Serializer {
+//
+//             #[derive(Serialize)]
+//             #[serde(tag="type", rename="$si")]
+//             struct PrivateShadowStruct<'a> {
+//                 $(
+//                     $f: &'a$t
+//                 )*
+//             }
+//
+//             PrivateShadowStruct {
+//                 $(
+//                     $f: &t.$f
+//                 )*
+//             }.serialize(s)
+//         }
+//     }
+// }
+//
+// derive_private_shadow_struct!{
+//     pub struct Test {
+//         pub a: u64,
+//     },
+//     test_as_obj
+// }
 
-        #[derive(Serialize)]
-        #[serde(tag="type", rename="Literal")]
-        struct $pst<'a> {
-            $(
-                $f: &'a$t
-            )*
-        }
-    }
-}
-
-derive_private_shadow_struct!{
-    pub struct Test {
-        pub a: u64,
-    },
-    PrivateTestShadow
-}
-
-pub fn test_as_obj<S>(lit: &Test, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-
-    PrivateTestShadow {
-        a: &lit.a
-    }.serialize(s)
-}
 
 pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
-    // let field_count = match lit.regex {
-    //     Some(_) => 3,
-    //     None => 2,
-    // };
-    // let mut state = s.serialize_struct("Literal", field_count)?;
-    // state.serialize_field("type", "Literal")?;
-    // state.serialize_field("value", &lit.value)?;
-    // state.serialize_field("raw", &lit.raw)?;
-    // if let Some(ref x) = &lit.regex {
-    //     state.serialize_field("regex", x)?;
-    // }
-    //
-    // state.end()
-
     #[derive(Serialize)]
     #[serde(tag="type", rename="Literal")]
     struct PrivateLiteral<'a> {
@@ -448,18 +432,39 @@ pub struct FunctionExpr {
     pub expression: bool,
 }
 
-// fn funcexpr_as_obj<S>(func: &FunctionExpr, s: S) -> Result<S::Ok, S::Error>
-//     where S: Serializer {
-//     let mut state = s.serialize_struct("FunctionExpr", 6)?;
-//     state.serialize_field("type", "FunctionExpression")?;
-//     // state.serialize_field("id", &serialize_ident_as_opt_obj(&func.id, s)?)?;
-//     state.serialize_field("params", &func.params)?;
-//     // state.serialize_field("body", &blockstmt_as_obj(&func.body, s)?)?;
-//     state.serialize_field("generator", &func.generator)?;
-//     state.serialize_field("async", &func.async)?;
-//     state.serialize_field("expression", &func.expression)?;
-//     state.end()
-// }
+fn funcexpr_as_obj<S>(func: &FunctionExpr, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+
+    #[derive(Serialize)]
+    #[serde(tag="type", rename="FunctionExpression")]
+    struct FunctionExprShadow<'a> {
+        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        id: &'a Option<Identifier>,
+        params: &'a Vec<FunctionParam>,
+        #[serde(serialize_with="blockstmt_as_obj")]
+        body: &'a BlockStmt,
+        generator: &'a bool,
+        async: &'a bool,
+        expression: &'a bool,
+    }
+
+    FunctionExprShadow {
+        id: &func.id,
+        params: &func.params,
+        body: &func.body,
+        generator: &func.generator,
+        async: &func.async,
+        expression: &func.expression,
+    }.serialize(s)
+}
+
+pub fn funcexpr_as_opt_obj<S>(f: &Option<FunctionExpr>, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+    match f {
+        Some(x) => funcexpr_as_obj(x, s),
+        None => s.serialize_none()
+    }
+}
 
 // type FunctionParameter = AssignmentPattern | Identifier | BindingPattern;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -520,21 +525,45 @@ pub struct TaggedTemplateExpr {
     pub quasi: TemplateLiteral
 }
 
-// TODO
+// interface TemplateElement {
+//     type: 'TemplateElement';
+//     value: { cooked: string; raw: string };
+//     tail: boolean;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct TemplateElement {
+    #[serde(flatten)]
+    pub value: TemplateElementValue,
+    pub tail: bool
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct TemplateElementValue {
+    pub cooked: String,
+    pub raw: String,
+}
+
+// interface TemplateLiteral {
+//     type: 'TemplateLiteral';
+//     quasis: TemplateElement[];
+//     expressions: Expression[];
+// }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct TemplateLiteral {
-
+    pub quasis: Vec<TemplateElement>,
+    pub expressions: Vec<Expr>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
 pub enum CallExprCallee {
     Expr(Box<Expr>),
+
+    // interface Import {
+    //     type: 'Import';
+    // }
     Import,
 }
-
-// interface Import {
-//     type: 'Import';
-// }
 
 // type ArgumentListElement = Expression | SpreadElement;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -582,7 +611,6 @@ pub enum UnaryOp {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
 pub enum BinaryOp {
     #[serde(rename="==")]
     Eq,
@@ -667,12 +695,15 @@ pub enum AssignmentOp {
 #[test]
 fn test_expr_se_de() {
     check_se_de(Expr::This, json!({"type": "ThisExpression"}));
+
     check_se_de(Expr::Ident(Identifier{name: "test".into()}),
                 json!({"type": "Identifier", "name": "test"}));
+
     check_se_de(Expr::Literal(Literal{value: LiteralKind::Bool(false),
                                       raw: "false".into(),
                                       regex: None}),
                 json!({"type": "Literal", "value": false, "raw": "false"}));
+
     // TODO
     // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
     //                                  raw: "/.*/g".into(),
@@ -781,6 +812,64 @@ fn test_expr_se_de() {
             }
         }));
 
+    // TODO
+    // check_se(Expr::Class(ClassExpr{
+    //         id: None,
+    //         super_class: None,
+    //         body: ClassBody {
+    //             body: vec![
+    //                 MethodDef{
+    //                     key: Some(Expr::Ident(Id::new("test"))),
+    //                     computed: false,
+    //                     value: Some(FunctionExpr{
+    //                         id: None,
+    //                         params: vec![],
+    //                         body: BlockStmt{
+    //                             body: vec![]
+    //                         },
+    //                         generator: false,
+    //                         expression: false,
+    //                         async: false,
+    //                     }),
+    //                     kind: MethodDefKind::Method,
+    //                     stat: false,
+    //                 }
+    //             ]
+    //         }
+    //     }),
+    //     json!({
+    //         "type": "ClassExpression",
+    //         "id": null,
+    //         "superClass": null,
+    //         "body": {
+    //             "type": "ClassBody",
+    //             "body": [
+    //                 {
+    //                     "type": "MethodDefinition",
+    //                     "key": {
+    //                         "type": "Identifier",
+    //                         "name": "test"
+    //                     },
+    //                     "computed": false,
+    //                     "value": {
+    //                         "type": "FunctionExpression",
+    //                         "id": null,
+    //                         "params": [],
+    //                         "body": {
+    //                             "type": "BlockStatement",
+    //                             "body": []
+    //                         },
+    //                         "generator": false,
+    //                         "expression": false,
+    //                         "async": false
+    //                     },
+    //                     "kind": "method",
+    //                     "static": false
+    //                 }
+    //             ]
+    //         }
+    //     }));
+
     check_se_de(Expr::Member{computed: false,
                                         object: Box::new(Expr::This),
                                         property: Box::new(Expr::Ident(Identifier{name: "snake".into()}))},
@@ -799,6 +888,35 @@ fn test_expr_se_de() {
                         "callee": {"type": "ThisExpression"},
                         "arguments": []}));
 
+    check_se_de(Expr::Call{
+            callee: CallExprCallee::Expr(Box::new(Expr::Ident(Id::new("a")))),
+            arguments: vec![
+                ArgumentListElement::Expr(Box::new(Expr::Ident(Id::new("x")))),
+                ArgumentListElement::Spread(SpreadElement{
+                    argument: Box::new(Expr::Ident(Id::new("_")))
+                })
+            ]
+        },json!({
+                "type": "CallExpression",
+                "callee": {
+                    "type": "Identifier",
+                    "name": "a"
+                },
+                "arguments": [
+                    {
+                        "type": "Identifier",
+                        "name": "x"
+                    },
+                    {
+                        "type": "SpreadElement",
+                        "argument": {
+                            "type": "Identifier",
+                            "name": "_"
+                        }
+                    }
+                ]
+            }));
+
     check_se_de(Expr::Update{operator: UpdateOp::Inc,
                                         argument: Box::new(Expr::This),
                                         prefix: false},
@@ -806,6 +924,54 @@ fn test_expr_se_de() {
                         "operator": "++",
                         "argument": {"type": "ThisExpression"},
                         "prefix": false}));
+
+    check_se_de(Expr::Unary{
+            operator: UnaryOp::Delete,
+            argument: Box::new(Expr::Ident(Id::new("x"))),
+            prefix: true,
+        },json!({
+            "type": "UnaryExpression",
+            "operator": "delete",
+            "argument": {
+                "type": "Identifier",
+                "name": "x"
+            },
+            "prefix": true
+        }));
+
+    check_se_de(Expr::Binary{
+            operator: BinaryOp::And,
+            left: Box::new(Expr::Ident(Id::new("a"))),
+            right: Box::new(Expr::Ident(Id::new("b"))),
+        },json!({
+            "type": "BinaryExpression",
+            "operator": "&",
+            "left": {
+                "type": "Identifier",
+                "name": "a"
+            },
+            "right": {
+                "type": "Identifier",
+                "name": "b"
+            }
+        }));
+
+    check_se_de(Expr::Logical{
+            operator: LogicalOp::And,
+            left: Box::new(Expr::Ident(Id::new("a"))),
+            right: Box::new(Expr::Ident(Id::new("b"))),
+        },json!({
+            "type": "LogicalExpression",
+            "operator": "&&",
+            "left": {
+                "type": "Identifier",
+                "name": "a"
+            },
+            "right": {
+                "type": "Identifier",
+                "name": "b"
+            }
+        }));
 
     // Conditional expression
     check_se_de(Expr::Conditional{

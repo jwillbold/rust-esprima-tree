@@ -55,6 +55,7 @@ pub struct ClassBody {
 pub struct MethodDef {
     pub key: Option<Expr>,
     pub computed: bool,
+    #[serde(serialize_with="funcexpr_as_opt_obj")]
     pub value: Option<FunctionExpr>,
     pub kind: MethodDefKind,
     #[serde(rename="static")]
@@ -148,7 +149,7 @@ fn tetst_decl_se_de() {
                             "type": "Identifier",
                             "name": "TestClass"
                         },
-                        "superClass": serde_json::Value::Null,
+                        "superClass": null,
                         "body": {
                             "type": "ClassBody",
                             "body": [
@@ -160,8 +161,8 @@ fn tetst_decl_se_de() {
                                     },
                                     "computed": false,
                                     "value": {
-                                        // "type": "FunctionExpression", // TODO
-                                        "id": serde_json::Value::Null,
+                                        "type": "FunctionExpression",
+                                        "id": null,
                                         "params": [],
                                         "body": {
                                             "type": "BlockStatement",

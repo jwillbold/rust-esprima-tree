@@ -1,0 +1,51 @@
+{
+    "type": "Program",
+    "body": [
+        {
+            "type": "VariableDeclaration",
+            "declarations": [
+                {
+                    "type": "VariableDeclarator",
+                    "id": {
+                        "type": "Identifier",
+                        "name": "c"
+                    },
+                    "init": {
+                        "type": "ClassExpression",
+                        "id": null,
+                        "superClass": null,
+                        "body": {
+                            "type": "ClassBody",
+                            "body": [
+                                {
+                                    "type": "MethodDefinition",
+                                    "key": {
+                                        "type": "Identifier",
+                                        "name": "test"
+                                    },
+                                    "computed": false,
+                                    "value": {
+                                        "type": "FunctionExpression",
+                                        "id": null,
+                                        "params": [],
+                                        "body": {
+                                            "type": "BlockStatement",
+                                            "body": []
+                                        },
+                                        "generator": false,
+                                        "expression": false,
+                                        "async": false
+                                    },
+                                    "kind": "method",
+                                    "static": false
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "kind": "var"
+        }
+    ],
+    "sourceType": "script"
+}
