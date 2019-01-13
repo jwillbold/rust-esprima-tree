@@ -1,3 +1,6 @@
+// #[cfg(test)]
+#![recursion_limit="128"]
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -17,4 +20,3 @@ pub use patterns::*;
 pub use declerations::*;
 pub use statements::*;
 pub use expressions::*;
-

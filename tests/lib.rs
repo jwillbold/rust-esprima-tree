@@ -1,11 +1,8 @@
-#![recursion_limit="128"]
+use std::fs::File;
+use std::io::BufReader;
+use std::error::Error;
 
-extern crate serde;
-#[macro_use]
 extern crate serde_json;
-
-// extern crate estree;
-// pub mod estree;
 
 extern crate jsast;
 
@@ -15,78 +12,28 @@ fn check(json: serde_json::Value) {
     let program = serde_json::from_value::<jsast::Program>(json.clone()).unwrap();
     let program_json = serde_json::to_value(program).unwrap();
 
-    assert_eq!(program_json, json);
+    assert_eq!(json, program_json);
+}
+
+#[cfg(test)]
+fn get_testdata(path: std::path::PathBuf) -> Result<serde_json::Value, Box<Error>> {
+    // FYI: https://github.com/serde-rs/json/issues/160
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    Ok(serde_json::from_reader(reader)?)
 }
 
 #[test]
 fn test_stuff() {
-    check(json!(
-        {
-            "type": "Program",
-            "body": [
-                {
-                    "type": "FunctionDeclaration",
-                    "id": {
-                        "type": "Identifier",
-                        "name": "empty"
-                    },
-                    "params": [],
-                    "body": {
-                        "type": "BlockStatement",
-                        "body": []
-                    },
-                    "generator": false,
-                    "expression": false,
-                    "async": false
-                }
-            ],
-            "sourceType": "script"
+    let paths = std::fs::read_dir("./tests/data").unwrap();
+
+    for path in paths {
+        let path = path.unwrap().path();
+        if path.extension().map(|s| s == "json").unwrap_or(false) {
+            println!("Checking: {}", path.display());
+
+            check(get_testdata(path).unwrap());
         }
-    ));
-
-
-    // check(
-    //     json!(
-    //     {
-    //         "type": "Program",
-    //         "body": [
-    //             {
-    //                 "type": "ClassDeclaration",
-    //                 "id": {
-    //                     "type": "Identifier",
-    //                     "name": "TestClass"
-    //                 },
-    //                 "superClass": null,
-    //                 "body": {
-    //                     "type": "ClassBody",
-    //                     "body": [
-    //                         {
-    //                             "type": "MethodDefinition",
-    //                             "key": {
-    //                                 "type": "Identifier",
-    //                                 "name": "func1"
-    //                             },
-    //                             "computed": false,
-    //                             "value": {
-    //                                 "type": "FunctionExpression",
-    //                                 "id": null,
-    //                                 "params": [],
-    //                                 "body": {
-    //                                     "type": "BlockStatement",
-    //                                     "body": []
-    //                                 },
-    //                                 "generator": false,
-    //                                 "expression": false,
-    //                                 "async": false
-    //                             },
-    //                             "kind": "method",
-    //                             "static": false
-    //                         }
-    //                     ]
-    //                 }
-    //             }
-    //         ],
-    //         "sourceType": "script"
-    //     }
-    // ));
+    }
 }

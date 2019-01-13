@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-#![allow(dead_code)]
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use serde::de::{Deserialize, Deserializer};
 
@@ -8,6 +7,7 @@ use statements::*;
 use patterns::{AssignmentPattern, BindingPattern};
 #[cfg(test)]
 use helpers::{check_se_de};
+use helpers::{serialize_as_opt};
 
 
 // type Expression = ThisExpression | Identifier | Literal |
@@ -224,10 +224,10 @@ pub struct Identifier {
     pub name: String
 }
 
-type Id = Identifier;
+pub type Id = Identifier;
 
 impl Identifier {
-    fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         Identifier{name: s.into()}
     }
 }
@@ -240,26 +240,19 @@ pub fn serialize_ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::E
     state.end()
 }
 
-pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer{
-    match ident {
-        Some(x) => serialize_ident_as_obj(x, s),
-        None => s.serialize_none(),
-    }
-}
-
-// fn serialize_as_opt<T, S>(f: &'static  &Fn(&T, S) -> Result<S::Ok, S::Error>)
-//     -> impl Fn(&Option<T>, S) -> Result<S::Ok, S::Error>
-//     where S: Serializer {
-//     move |t: &Option<T>, s: S| -> Result<S::Ok, S::Error> {
-//         match t {
-//             Some(x) => f(x, s),
-//             None => s.serialize_none()
-//         }
+// pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
+//     where S: Serializer{
+//     match ident {
+//         Some(x) => serialize_ident_as_obj(x, s),
+//         None => s.serialize_none(),
 //     }
 // }
 
-
+pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer{
+    let f = serialize_as_opt(&serialize_ident_as_obj);
+    f(ident, s)
+}
 
 // interface Literal {
 //     type: 'Literal';
@@ -275,10 +268,18 @@ pub struct Literal {
     pub regex: Option<LiteralRegex>
 }
 
-type Lit = Literal;
+pub type Lit = Literal;
 
 impl Literal {
-    fn newf(f: f64) -> Self {
+    pub fn new_str(s: &str) -> Self {
+        Literal {
+            value: LiteralKind::Str(s.to_string()),
+            raw: s.into(),
+            regex: None
+        }
+    }
+
+    pub fn newf(f: f64) -> Self {
         Literal {
             value: LiteralKind::Num(f),
             raw: f.to_string(),
@@ -287,44 +288,6 @@ impl Literal {
         }
     }
 }
-
-// macro_rules! derive_private_shadow_struct {
-//     (pub struct $si:ident {
-//         $(pub $f:ident: $t:ty,)*
-//     }, $tof:ident) => {
-//         pub struct $si {
-//             $(
-//                 pub $f: $t
-//             )*
-//         }
-//
-//         pub fn $tof<S>(t: $si, s: S) -> Result<S::Ok, S::Error>
-//             where S: Serializer {
-//
-//             #[derive(Serialize)]
-//             #[serde(tag="type", rename="$si")]
-//             struct PrivateShadowStruct<'a> {
-//                 $(
-//                     $f: &'a$t
-//                 )*
-//             }
-//
-//             PrivateShadowStruct {
-//                 $(
-//                     $f: &t.$f
-//                 )*
-//             }.serialize(s)
-//         }
-//     }
-// }
-//
-// derive_private_shadow_struct!{
-//     pub struct Test {
-//         pub a: u64,
-//     },
-//     test_as_obj
-// }
-
 
 pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
@@ -644,6 +607,8 @@ pub enum BinaryOp {
     Div,
     #[serde(rename="%")]
     Mod,
+    #[serde(rename="**")]
+    Exp,
     #[serde(rename="|")]
     Or,
     #[serde(rename="^")]
@@ -699,16 +664,22 @@ fn test_expr_se_de() {
     check_se_de(Expr::Ident(Identifier{name: "test".into()}),
                 json!({"type": "Identifier", "name": "test"}));
 
+    check_se_de(Expr::Ident(Id::new("test")),
+                json!({"type": "Identifier", "name": "test"}));
+
     check_se_de(Expr::Literal(Literal{value: LiteralKind::Bool(false),
                                       raw: "false".into(),
                                       regex: None}),
                 json!({"type": "Literal", "value": false, "raw": "false"}));
 
-    // TODO
+    check_se_de(Expr::Literal(Lit::new_str("string")),
+                json!({"type": "Literal", "value": "string", "raw": "string"}));
+
+    // TODO: implement custom parsing to seperate strins and regexs
     // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
-    //                                  raw: "/.*/g".into(),
-    //                                  regex: Some(LiteralRegex{pattern: ".*".into(),
-    //                                                           flags: "g".into()})}),
+    //                                   raw: "/.*/g".into(),
+    //                                   regex: Some(LiteralRegex{pattern: ".*".into(),
+    //                                                            flags: "g".into()})}),
     //             json!({"type": "Literal",
     //                     "value": "/.*/g",
     //                     "raw": "/.*/g",
@@ -812,63 +783,62 @@ fn test_expr_se_de() {
             }
         }));
 
-    // TODO
-    // check_se(Expr::Class(ClassExpr{
-    //         id: None,
-    //         super_class: None,
-    //         body: ClassBody {
-    //             body: vec![
-    //                 MethodDef{
-    //                     key: Some(Expr::Ident(Id::new("test"))),
-    //                     computed: false,
-    //                     value: Some(FunctionExpr{
-    //                         id: None,
-    //                         params: vec![],
-    //                         body: BlockStmt{
-    //                             body: vec![]
-    //                         },
-    //                         generator: false,
-    //                         expression: false,
-    //                         async: false,
-    //                     }),
-    //                     kind: MethodDefKind::Method,
-    //                     stat: false,
-    //                 }
-    //             ]
-    //         }
-    //     }),
-    //     json!({
-    //         "type": "ClassExpression",
-    //         "id": null,
-    //         "superClass": null,
-    //         "body": {
-    //             "type": "ClassBody",
-    //             "body": [
-    //                 {
-    //                     "type": "MethodDefinition",
-    //                     "key": {
-    //                         "type": "Identifier",
-    //                         "name": "test"
-    //                     },
-    //                     "computed": false,
-    //                     "value": {
-    //                         "type": "FunctionExpression",
-    //                         "id": null,
-    //                         "params": [],
-    //                         "body": {
-    //                             "type": "BlockStatement",
-    //                             "body": []
-    //                         },
-    //                         "generator": false,
-    //                         "expression": false,
-    //                         "async": false
-    //                     },
-    //                     "kind": "method",
-    //                     "static": false
-    //                 }
-    //             ]
-    //         }
-    //     }));
+    check_se_de(Expr::Class(ClassExpr{
+            id: None,
+            super_class: None,
+            body: ClassBody {
+                body: vec![
+                    MethodDef{
+                        key: Some(Expr::Ident(Id::new("test"))),
+                        computed: false,
+                        value: Some(FunctionExpr{
+                            id: None,
+                            params: vec![],
+                            body: BlockStmt{
+                                body: vec![]
+                            },
+                            generator: false,
+                            expression: false,
+                            async: false,
+                        }),
+                        kind: MethodDefKind::Method,
+                        stat: false,
+                    }
+                ]
+            }
+        }),
+                json!({
+            "type": "ClassExpression",
+            "id": null,
+            "superClass": null,
+            "body": {
+                "type": "ClassBody",
+                "body": [
+                    {
+                        "type": "MethodDefinition",
+                        "key": {
+                            "type": "Identifier",
+                            "name": "test"
+                        },
+                        "computed": false,
+                        "value": {
+                            "type": "FunctionExpression",
+                            "id": null,
+                            "params": [],
+                            "body": {
+                                "type": "BlockStatement",
+                                "body": []
+                            },
+                            "generator": false,
+                            "expression": false,
+                            "async": false
+                        },
+                        "kind": "method",
+                        "static": false
+                    }
+                ]
+            }
+        }));
 
     check_se_de(Expr::Member{computed: false,
                                         object: Box::new(Expr::This),
@@ -895,8 +865,8 @@ fn test_expr_se_de() {
                 ArgumentListElement::Spread(SpreadElement{
                     argument: Box::new(Expr::Ident(Id::new("_")))
                 })
-            ]
-        },json!({
+            ]},
+                json!({
                 "type": "CallExpression",
                 "callee": {
                     "type": "Identifier",

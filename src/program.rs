@@ -8,9 +8,13 @@ use expressions::{Expr, Literal, literal_as_obj, Identifier,
 #[cfg(test)]
 use helpers::{check_se_de};
 #[cfg(test)]
-use statements::{BlockStmt};
+use statements::{BlockStmt, *};
 #[cfg(test)]
-use expressions::{LiteralKind};
+use expressions::{LiteralKind, *};
+#[cfg(test)]
+use declerations::*;
+#[cfg(test)]
+use patterns::*;
 
 // interface Program {
 //   type: 'Program';
@@ -41,12 +45,160 @@ impl serde::Serialize for Program {
     }
 }
 
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum ProgramType {
+    Script(Vec<StmtListItem>),
+    Module(Vec<ModuleItem>)
+}
+
+// type ModuleItem = ImportDeclaration | ExportDeclaration | StatementListItem;
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum ModuleItem {
+    Import(ImportDecl),
+    Export(ExportDecl),
+    Stmts(StmtListItem)
+}
+
+// type ImportDeclaration {
+//     type: 'ImportDeclaration';
+//     specifiers: ImportSpecifier[];
+//     source: Literal;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ImportDeclaration")]
+pub struct ImportDecl {
+    pub specifiers: Vec<ImportSpecifier>,
+    #[serde(serialize_with="literal_as_obj")]
+    pub source: Literal
+}
+
+// interface ImportSpecifier {
+//     type: 'ImportSpecifier' | 'ImportDefaultSpecifier' | 'ImportNamespaceSpecifier';
+//     local: Identifier;
+//     imported?: Identifier;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ImportSpecifier {
+    #[serde(rename="type")]
+    pub ty: ImportSpecifierKind,
+    #[serde(serialize_with="serialize_ident_as_obj")]
+    pub local: Identifier,
+    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    pub imported: Option<Identifier>
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub enum ImportSpecifierKind {
+    ImportSpecifier,
+    ImportDefaultSpecifier,
+    ImportNamespaceSpecifier
+}
+
+// type ExportDeclaration = ExportAllDeclaration | ExportDefaultDeclaration | ExportNamedDeclaration;
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
+pub enum ExportDecl {
+    // interface ExportAllDeclaration {
+    //     type: 'ExportAllDeclaration';
+    //     source: Literal;
+    // }
+    #[serde(rename="ExportAllDeclaration")]
+    ExportAll{
+        #[serde(serialize_with="literal_as_obj")]
+        source: Literal
+    },
+
+
+    // interface ExportDefaultDeclaration {
+    //     type: 'ExportDefaultDeclaration';
+    //     declaration: Identifier | BindingPattern | ClassDeclaration | Expression | FunctionDeclaration;
+    // }
+    #[serde(rename="ExportDefaultDeclaration")]
+    ExportDefault{
+        declaration: ExportDefaultDeclKind
+    },
+
+
+    // interface ExportNamedDeclaration {
+    //     type: 'ExportNamedDeclaration';
+    //     declaration: ClassDeclaration | FunctionDeclaration | VariableDeclaration;
+    //     specifiers: ExportSpecifier[];
+    //     source: Literal;
+    // }
+    #[serde(rename="ExportNamedDeclaration")]
+    ExportNamed{declaration: Decl,
+                specifiers: Vec<ExportSpecifier>,
+                // #[serde(serialize_with="literal_as_obj")]
+                // TODO
+                source: Option<Literal>
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag = "type")]
+pub enum ExportDefaultDeclKind {
+    Ident(Identifier),
+    Binding(BindingPattern),
+    Class(ClassDecl),
+    // TODO this will produce as doubled type tag
+    Expr(Expr),
+    Function(FunctionDecl)
+}
+
+// interface ExportSpecifier {
+//     type: 'ExportSpecifier';
+//     exported: Identifier;
+//     local: Identifier;
+// };
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
+pub struct ExportSpecifier {
+    #[serde(serialize_with="serialize_ident_as_obj")]
+    pub exported: Identifier,
+    #[serde(serialize_with="serialize_ident_as_obj")]
+    pub local: Identifier
+}
+
 #[test]
 fn test_progman_se_de() {
     check_se_de(Program{body: ProgramType::Script(vec![])},
                 json!({"type": "Program",
                         "sourceType": "script",
                         "body": []}));
+
+    check_se_de(Program{body: ProgramType::Script(vec![
+                    StmtListItem::Decl(Decl::Variable(VariableDecl{
+                        declarations: vec![
+                            VariableDeclarator{
+                                id: IdentOrPattern::Ident(Id::new("canvas")),
+                                init: None
+                            }
+                        ],
+                        kind: VariableDeclKind::Var
+                    }))
+                ])},
+                json!({"type": "Program",
+                        "sourceType": "script",
+                        "body": [
+                        {
+                            "type": "VariableDeclaration",
+                            "declarations": [
+                                {
+                                    "type": "VariableDeclarator",
+                                    "id": {
+                                        "type": "Identifier",
+                                        "name": "canvas"
+                                    },
+                                    "init": null
+                                }
+                            ],
+                            "kind": "var"
+                        }
+                        ]}));
 
     // TODO
     // check_se_de(Program{body: ProgramType::Module(vec![])},
@@ -265,121 +417,4 @@ fn test_progman_se_de() {
                 "sourceType": "module"
             }
         ));
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
-pub enum ProgramType {
-    Script(Vec<StmtListItem>),
-    Module(Vec<ModuleItem>)
-}
-
-// type ModuleItem = ImportDeclaration | ExportDeclaration | StatementListItem;
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
-pub enum ModuleItem {
-    Import(ImportDecl),
-    Export(ExportDecl),
-    Stmts(StmtListItem)
-}
-
-// type ImportDeclaration {
-//     type: 'ImportDeclaration';
-//     specifiers: ImportSpecifier[];
-//     source: Literal;
-// }
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag="type", rename="ImportDeclaration")]
-pub struct ImportDecl {
-    pub specifiers: Vec<ImportSpecifier>,
-    #[serde(serialize_with="literal_as_obj")]
-    pub source: Literal
-}
-
-// interface ImportSpecifier {
-//     type: 'ImportSpecifier' | 'ImportDefaultSpecifier' | 'ImportNamespaceSpecifier';
-//     local: Identifier;
-//     imported?: Identifier;
-// }
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct ImportSpecifier {
-    #[serde(rename="type")]
-    pub ty: ImportSpecifierKind,
-    #[serde(serialize_with="serialize_ident_as_obj")]
-    pub local: Identifier,
-    #[serde(skip_serializing_if="Option::is_none")]
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
-    pub imported: Option<Identifier>
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub enum ImportSpecifierKind {
-    ImportSpecifier,
-    ImportDefaultSpecifier,
-    ImportNamespaceSpecifier
-}
-
-// type ExportDeclaration = ExportAllDeclaration | ExportDefaultDeclaration | ExportNamedDeclaration;
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag="type")]
-pub enum ExportDecl {
-    // interface ExportAllDeclaration {
-    //     type: 'ExportAllDeclaration';
-    //     source: Literal;
-    // }
-    #[serde(rename="ExportAllDeclaration")]
-    ExportAll{
-        #[serde(serialize_with="literal_as_obj")]
-        source: Literal
-    },
-
-
-    // interface ExportDefaultDeclaration {
-    //     type: 'ExportDefaultDeclaration';
-    //     declaration: Identifier | BindingPattern | ClassDeclaration | Expression | FunctionDeclaration;
-    // }
-    #[serde(rename="ExportDefaultDeclaration")]
-    ExportDefault{
-        declaration: ExportDefaultDeclKind
-    },
-
-
-    // interface ExportNamedDeclaration {
-    //     type: 'ExportNamedDeclaration';
-    //     declaration: ClassDeclaration | FunctionDeclaration | VariableDeclaration;
-    //     specifiers: ExportSpecifier[];
-    //     source: Literal;
-    // }
-    #[serde(rename="ExportNamedDeclaration")]
-    ExportNamed{declaration: Decl,
-                specifiers: Vec<ExportSpecifier>,
-                // #[serde(serialize_with="literal_as_obj")]
-                // TODO
-                source: Option<Literal>
-    }
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag = "type")]
-pub enum ExportDefaultDeclKind {
-    Ident(Identifier),
-    Binding(BindingPattern),
-    Class(ClassDecl),
-    // TODO this will produce as doubled type tag
-    Expr(Expr),
-    Function(FunctionDecl)
-}
-
-// interface ExportSpecifier {
-//     type: 'ExportSpecifier';
-//     exported: Identifier;
-//     local: Identifier;
-// };
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag="type")]
-pub struct ExportSpecifier {
-    #[serde(serialize_with="serialize_ident_as_obj")]
-    pub exported: Identifier,
-    #[serde(serialize_with="serialize_ident_as_obj")]
-    pub local: Identifier
 }

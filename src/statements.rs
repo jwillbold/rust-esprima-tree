@@ -332,4 +332,50 @@ fn test_stmt_se_de() {
                         "name": "a"
                     }
         }));
+
+    check_se_de(Stmt::If{
+                    test: Expr::Unary{
+                        operator: UnaryOp::Not,
+                        argument: Box::new(Expr::Ident(Id::new("l2"))),
+                        prefix: true,
+                    },
+                    consequent: Box::new(Stmt::Return{
+                        argument: Some(Expr::Call{
+                            callee: CallExprCallee::Expr(Box::new(Expr::Ident(Id::new("a")))),
+                            arguments: vec![
+                                ArgumentListElement::Expr(Box::new(Expr::Ident(Id::new("p"))))
+                            ]
+                        })
+                    }),
+                    alternate: None
+                },
+                json!({
+                      "type": "IfStatement",
+                      "test": {
+                          "type": "UnaryExpression",
+                          "operator": "!",
+                          "argument": {
+                              "type": "Identifier",
+                              "name": "l2"
+                          },
+                          "prefix": true
+                      },
+                      "consequent": {
+                          "type": "ReturnStatement",
+                          "argument": {
+                              "type": "CallExpression",
+                              "callee": {
+                                  "type": "Identifier",
+                                  "name": "a"
+                              },
+                              "arguments": [
+                                  {
+                                      "type": "Identifier",
+                                      "name": "p"
+                                  },
+                              ]
+                          }
+                      },
+                      "alternate": null
+                  }));
 }
