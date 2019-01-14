@@ -4,11 +4,11 @@ use declerations::{Decl, ClassDecl, FunctionDecl};
 use patterns::{BindingPattern};
 use statements::{StmtListItem};
 use expressions::{Expr, Literal, literal_as_obj, Identifier,
-                    serialize_ident_as_obj, serialize_ident_as_opt_obj};
+                    ident_as_obj, ident_as_opt_obj};
 #[cfg(test)]
 use helpers::{check_se_de};
 #[cfg(test)]
-use statements::{BlockStmt, *};
+use statements::{BlockStmt};
 #[cfg(test)]
 use expressions::{LiteralKind, *};
 #[cfg(test)]
@@ -84,10 +84,10 @@ pub struct ImportDecl {
 pub struct ImportSpecifier {
     #[serde(rename="type")]
     pub ty: ImportSpecifierKind,
-    #[serde(serialize_with="serialize_ident_as_obj")]
+    #[serde(serialize_with="ident_as_obj")]
     pub local: Identifier,
     #[serde(skip_serializing_if="Option::is_none")]
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub imported: Option<Identifier>
 }
 
@@ -157,9 +157,9 @@ pub enum ExportDefaultDeclKind {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag="type")]
 pub struct ExportSpecifier {
-    #[serde(serialize_with="serialize_ident_as_obj")]
+    #[serde(serialize_with="ident_as_obj")]
     pub exported: Identifier,
-    #[serde(serialize_with="serialize_ident_as_obj")]
+    #[serde(serialize_with="ident_as_obj")]
     pub local: Identifier
 }
 

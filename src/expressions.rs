@@ -7,7 +7,6 @@ use statements::*;
 use patterns::{AssignmentPattern, BindingPattern};
 #[cfg(test)]
 use helpers::{check_se_de};
-use helpers::{serialize_as_opt};
 
 
 // type Expression = ThisExpression | Identifier | Literal |
@@ -232,7 +231,7 @@ impl Identifier {
     }
 }
 
-pub fn serialize_ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
+pub fn ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
     let mut state = s.serialize_struct("Identifier", 2)?;
     state.serialize_field("type", "Identifier")?;
@@ -240,19 +239,8 @@ pub fn serialize_ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::E
     state.end()
 }
 
-// pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
-//     where S: Serializer{
-//     match ident {
-//         Some(x) => serialize_ident_as_obj(x, s),
-//         None => s.serialize_none(),
-//     }
-// }
+make_serialize_as_opt_func!(ident_as_obj, Identifier, ident_as_opt_obj);
 
-pub fn serialize_ident_as_opt_obj<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer{
-    let f = serialize_as_opt(&serialize_ident_as_obj);
-    f(ident, s)
-}
 
 // interface Literal {
 //     type: 'Literal';
@@ -279,12 +267,14 @@ impl Literal {
         }
     }
 
-    pub fn newf(f: f64) -> Self {
+    pub fn new_f(f: f64) -> Self {
         Literal {
             value: LiteralKind::Num(f),
-            raw: f.to_string(),
+            // This looks like an overkill, but it ensures that the number '2.0' actually
+            // gets printed as '2.0'. In addition this should prevent any problem that could
+            // occur due to different number serilaizations
+            raw: serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap()).to_string(),
             regex: None,
-
         }
     }
 }
@@ -311,6 +301,10 @@ pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
 #[serde(untagged)]
 pub enum LiteralKind {
     Bool(bool),
+    // This is not described in the estree standard and is only used internally. If a number
+    // is parsed as "2", it should also be serialized as 2. On the contrary if it was "2.0"
+    // it should still be "2.0" after parsing and serializing it.
+    Int(i64),
     Num(f64),
     Str(String),
     RegEx(String),
@@ -385,7 +379,7 @@ pub enum PropertyKind {
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FunctionExpr {
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
     #[serde(serialize_with="blockstmt_as_obj")]
@@ -401,7 +395,7 @@ fn funcexpr_as_obj<S>(func: &FunctionExpr, s: S) -> Result<S::Ok, S::Error>
     #[derive(Serialize)]
     #[serde(tag="type", rename="FunctionExpression")]
     struct FunctionExprShadow<'a> {
-        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        #[serde(serialize_with="ident_as_opt_obj")]
         id: &'a Option<Identifier>,
         params: &'a Vec<FunctionParam>,
         #[serde(serialize_with="blockstmt_as_obj")]
@@ -421,13 +415,8 @@ fn funcexpr_as_obj<S>(func: &FunctionExpr, s: S) -> Result<S::Ok, S::Error>
     }.serialize(s)
 }
 
-pub fn funcexpr_as_opt_obj<S>(f: &Option<FunctionExpr>, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    match f {
-        Some(x) => funcexpr_as_obj(x, s),
-        None => s.serialize_none()
-    }
-}
+make_serialize_as_opt_func!(funcexpr_as_obj, FunctionExpr, funcexpr_as_opt_obj);
+
 
 // type FunctionParameter = AssignmentPattern | Identifier | BindingPattern;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -452,7 +441,7 @@ pub enum FunctionParam {
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct ArrowFuncExpr {
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
     pub body: ArrowFuncExprBody,
@@ -674,6 +663,20 @@ fn test_expr_se_de() {
 
     check_se_de(Expr::Literal(Lit::new_str("string")),
                 json!({"type": "Literal", "value": "string", "raw": "string"}));
+
+    check_se_de(Expr::Literal(Lit{value: LiteralKind::Num(1.0), raw: "1.0".into(), regex: None}),
+                json!({"type": "Literal", "value": 1.0, "raw": "1.0"}));
+
+
+    let int_lit_json = json!({"value": 2, "raw": "2"});
+    let int_lit = serde_json::from_value::<Literal>(int_lit_json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(int_lit).unwrap(), int_lit_json);
+
+    check_se_de(Expr::Literal(Lit{value: LiteralKind::Int(3), raw: "3".into(), regex: None}),
+                json!({"type": "Literal", "value": 3, "raw": "3"}));
+
+    check_se_de(Expr::Literal(Lit::new_f(2.0)),
+                json!({"type": "Literal", "value": 2.0, "raw": "2.0"}));
 
     // TODO: implement custom parsing to seperate strins and regexs
     // check_se_de(Expr::Literal(Literal{value: LiteralKind::RegEx("/.*/g".into()),
@@ -946,8 +949,8 @@ fn test_expr_se_de() {
     // Conditional expression
     check_se_de(Expr::Conditional{
             test: Box::new(Expr::Ident(Id::new("a"))),
-            consequent: Box::new(Expr::Literal(Lit::newf(0.0))),
-            alternate: Box::new(Expr::Literal(Lit::newf(1.0)))
+            consequent: Box::new(Expr::Literal(Lit::new_f(0.0))),
+            alternate: Box::new(Expr::Literal(Lit::new_f(1.0)))
         },
         json!({
                 "type": "ConditionalExpression",
@@ -957,13 +960,13 @@ fn test_expr_se_de() {
                 },
                 "consequent": {
                     "type": "Literal",
-                    "value": 0.0, // TODO
-                    "raw": "0"
+                    "value": 0.0,
+                    "raw": "0.0"
                 },
                 "alternate": {
                     "type": "Literal",
-                    "value": 1.0, // TODO
-                    "raw": "1"
+                    "value": 1.0,
+                    "raw": "1.0"
                 }
         }));
 

@@ -8,12 +8,14 @@ extern crate serde;
 #[macro_use]
 extern crate serde_json;
 
+#[macro_use]
+mod helpers;
+
 pub mod patterns;
 pub mod program;
 pub mod declerations;
 pub mod statements;
 pub mod expressions;
-mod helpers;
 
 pub use program::*;
 pub use patterns::*;

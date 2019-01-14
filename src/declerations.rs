@@ -24,10 +24,10 @@ pub enum Decl {
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct ClassDecl {
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     #[serde(rename="superClass")]
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub super_class: Option<Identifier>,
     pub body: ClassBody,
 }
@@ -81,7 +81,7 @@ pub enum MethodDefKind {
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FunctionDecl {
-    #[serde(serialize_with="serialize_ident_as_opt_obj")]
+    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
     #[serde(serialize_with="blockstmt_as_obj")]

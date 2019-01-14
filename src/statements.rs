@@ -28,7 +28,7 @@ pub enum Stmt {
     // }
     #[serde(rename="BreakStatement")]
     Break {
-        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        #[serde(serialize_with="ident_as_opt_obj")]
         label: Option<Identifier>
     },
 
@@ -38,7 +38,7 @@ pub enum Stmt {
     // }
     #[serde(rename="ContinueStatement")]
     Continue {
-        #[serde(serialize_with="serialize_ident_as_opt_obj")]
+        #[serde(serialize_with="ident_as_opt_obj")]
         label: Option<Identifier>
     },
 
@@ -127,7 +127,7 @@ pub enum Stmt {
     // }
     #[serde(rename="LabeledStatement")]
     Labled{
-         #[serde(serialize_with="serialize_ident_as_obj")]
+         #[serde(serialize_with="ident_as_obj")]
          label: Identifier,
          body: Box<Stmt>},
 
