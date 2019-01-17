@@ -884,7 +884,6 @@ pub mod jsast {
         Str(String),
         Bool(bool),
         Null,
-        // TODO: Is this how JS represents numbers?
         Num(f64),
         Regex(String),
     }

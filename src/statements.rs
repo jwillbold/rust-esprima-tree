@@ -162,7 +162,7 @@ pub enum Stmt {
     #[serde(rename="TryStatement")]
     Try{block: BlockStmt,
         handler: Option<CatchClause>,
-        // #[serde(serialize_with="blockstmt_as_obj")] // TODO
+        #[serde(serialize_with="blockstmt_as_opt_obj")]
         finalizer: Option<BlockStmt>},
 
     #[serde(rename="VariableDeclaration")]
@@ -186,10 +186,10 @@ pub enum Stmt {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-// #[serde(untagged)]
+#[serde(untagged)]
 pub enum FotStmtInit {
     Expr(Expr),
-    // TODO as obj
+    #[serde(serialize_with="variabledecl_as_obj")]
     VarDecl(VariableDecl),
 }
 
@@ -238,6 +238,8 @@ pub fn blockstmt_as_obj<S>(block: &BlockStmt, s: S) -> Result<S::Ok, S::Error>
     state.serialize_field("body", &block.body)?;
     state.end()
 }
+
+make_serialize_as_opt_func!(blockstmt_as_obj, BlockStmt, blockstmt_as_opt_obj);
 
 
 #[test]
