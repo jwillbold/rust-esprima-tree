@@ -297,6 +297,8 @@ pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
     }.serialize(s)
 }
 
+make_serialize_as_opt_func!(literal_as_obj, Literal, literal_as_opt_obj);
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(untagged)]
 pub enum LiteralKind {
@@ -978,8 +980,8 @@ fn test_expr_se_de() {
             operator: AssignmentOp::Assign,
             left: Box::new(Expr::Ident(Identifier{name: "i".into()})),
             right: Box::new(Expr::Literal(Literal{
-                value: LiteralKind::Num(0.0),
-                raw: "0.0".into(),
+                value: LiteralKind::Int(0),
+                raw: "0".into(),
                 regex: None
             }))
         },
@@ -992,8 +994,8 @@ fn test_expr_se_de() {
                 },
                 "right": {
                     "type": "Literal",
-                    "value": 0.0, // TODO this hould be just 0 not 0.0
-                    "raw": "0.0"
+                    "value": 0,
+                    "raw": "0"
                 }
             }));
 

@@ -3,7 +3,7 @@ use serde::ser::{Serializer, SerializeStruct};
 use declerations::{Decl, ClassDecl, FunctionDecl};
 use patterns::{BindingPattern};
 use statements::{StmtListItem};
-use expressions::{Expr, Literal, literal_as_obj, Identifier,
+use expressions::{Expr, Literal, literal_as_obj, literal_as_opt_obj, Identifier,
                     ident_as_obj, ident_as_opt_obj};
 #[cfg(test)]
 use helpers::{check_se_de};
@@ -132,19 +132,18 @@ pub enum ExportDecl {
     #[serde(rename="ExportNamedDeclaration")]
     ExportNamed{declaration: Decl,
                 specifiers: Vec<ExportSpecifier>,
-                // #[serde(serialize_with="literal_as_obj")]
-                // TODO
+                #[serde(serialize_with="literal_as_opt_obj")]
                 source: Option<Literal>
     }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag = "type")]
+#[serde(tag="type")]
 pub enum ExportDefaultDeclKind {
     Ident(Identifier),
     Binding(BindingPattern),
     Class(ClassDecl),
-    // TODO this will produce as doubled type tag
+    // TODO this will produce a doubled type tag
     Expr(Expr),
     Function(FunctionDecl)
 }
@@ -283,7 +282,7 @@ fn test_progman_se_de() {
                                             regex: None}
                         }),
                     ])},
-                    json!({
+                json!({
                             "type": "Program",
                             "body": [
                                 {
@@ -324,7 +323,7 @@ fn test_progman_se_de() {
                                                 regex: None}
                             }),
                     ])},
-                    json!({
+                json!({
                             "type": "Program",
                             "body": [
                                 {
@@ -357,7 +356,7 @@ fn test_progman_se_de() {
                         }
                     })
         ])},
-        json!({
+                json!({
                 "type": "Program",
                 "body": [
                     {
@@ -390,7 +389,7 @@ fn test_progman_se_de() {
                         source: None
                     })
         ])},
-        json!({
+                json!({
                 "type": "Program",
                 "body": [
                     {
@@ -415,6 +414,5 @@ fn test_progman_se_de() {
                     }
                 ],
                 "sourceType": "module"
-            }
-        ));
+            }));
 }

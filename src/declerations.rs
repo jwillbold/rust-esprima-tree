@@ -1,3 +1,5 @@
+use serde::ser::{Serialize, Serializer};
+
 use patterns::{IdentOrPattern};
 use statements::*;
 use expressions::*;
@@ -100,6 +102,22 @@ pub struct FunctionDecl {
 pub struct VariableDecl {
     pub declarations: Vec<VariableDeclarator>,
     pub kind: VariableDeclKind,
+}
+
+pub fn variabledecl_as_obj<S>(decl: &VariableDecl, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+
+    #[derive(Serialize)]
+    #[serde(tag="type", rename="VariableDeclaration")]
+    struct VariableDeclShadow<'a> {
+        declarations: &'a Vec<VariableDeclarator>,
+        kind:  &'a VariableDeclKind,
+    }
+
+    VariableDeclShadow {
+        declarations: &decl.declarations,
+        kind: &decl.kind,
+    }.serialize(s)
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
