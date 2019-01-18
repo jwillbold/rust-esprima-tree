@@ -667,10 +667,13 @@ fn test_expr_se_de() {
     check_se_de(Expr::Literal(Lit{value: LiteralKind::Num(1.0), raw: "1.0".into(), regex: None}),
                 json!({"type": "Literal", "value": 1.0, "raw": "1.0"}));
 
-
     let int_lit_json = json!({"value": 2, "raw": "2"});
     let int_lit = serde_json::from_value::<Literal>(int_lit_json.clone()).unwrap();
     assert_eq!(serde_json::to_value(int_lit).unwrap(), int_lit_json);
+
+    let float_lit_json = json!({"value": 2.0, "raw": "2.0"});
+    let float_lit = serde_json::from_value::<Literal>(float_lit_json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(float_lit).unwrap(), float_lit_json);
 
     check_se_de(Expr::Literal(Lit{value: LiteralKind::Int(3), raw: "3".into(), regex: None}),
                 json!({"type": "Literal", "value": 3, "raw": "3"}));
