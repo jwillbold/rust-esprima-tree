@@ -93,6 +93,24 @@ pub struct FunctionDecl {
     pub expression: bool, // TODO This must be constant false
 }
 
+impl FunctionDecl {
+    pub fn new(id: &str, params: Vec<FunctionParam>, body: Vec<StmtListItem>) -> Self {
+        FunctionDecl {
+            id: match id {
+                "" => None,
+                _ => Some(Id::new(id))
+            },
+            params,
+            body: BlockStmt {
+                body,
+            },
+            generator: false,
+            async: false,
+            expression: false
+        }
+    }
+}
+
 // interface VariableDeclaration {
 //     type: 'VariableDeclaration';
 //     declarations: VariableDeclarator[];
