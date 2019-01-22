@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 use serde::ser::{Serialize, Serializer, SerializeStruct};
-// use serde::de::{Deserialize, Deserializer};
 
 use declerations::*;
 use patterns::*;
@@ -22,25 +21,11 @@ pub enum Stmt {
     #[serde(rename="BlockStatement")]
     Block(BlockStmt),
 
-    // interface BreakStatement {
-    //     type: 'BreakStatement';
-    //     label: Identifier | null;
-    // }
     #[serde(rename="BreakStatement")]
-    Break {
-        #[serde(serialize_with="ident_as_opt_obj")]
-        label: Option<Identifier>
-    },
+    Break(BreakStmt),
 
-    // interface ContinueStatement {
-    //     type: 'ContinueStatement';
-    //     label: Identifier | null;
-    // }
     #[serde(rename="ContinueStatement")]
-    Continue {
-        #[serde(serialize_with="ident_as_opt_obj")]
-        label: Option<Identifier>
-    },
+    Continue(ContinueStmt),
 
     // TODO tests
     // interface DebuggerStatement {
@@ -49,14 +34,8 @@ pub enum Stmt {
     #[serde(rename="DebuggerStatement")]
     Debugger,
 
-    // interface DoWhileStatement {
-    //     type: 'DoWhileStatement';
-    //     body: Statement;
-    //     test: Expression;
-    // }
     #[serde(rename="DoWhileStatement")]
-    DoWhile{body: Box<Stmt>,
-            test: Expr},
+    DoWhile(DoWhileStmt),
 
     // interface EmptyStatement {
     //     type: 'EmptyStatement';
@@ -64,125 +43,129 @@ pub enum Stmt {
     #[serde(rename="EmptyStatement")]
     Empty,
 
-    // interface ExpressionStatement {
-    //     type: 'ExpressionStatement';
-    //     expression: Expression;
-    //     directive?: string;
-    // }
     #[serde(rename="ExpressionStatement")]
-    Expr{expression: Expr,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        directive: Option<String>},
+    Expr(ExprStmt),
 
-    // interface ForStatement {
-    //     type: 'ForStatement';
-    //     init: Expression | VariableDeclaration | null;
-    //     test: Expression | null;
-    //     update: Expression | null;
-    //     body: Statement;
-    // }
     #[serde(rename="ForStatement")]
-    For{init: Option<FotStmtInit>,
-        test: Option<Expr>,
-        update: Option<Expr>,
-        body: Box<Stmt>},
+    For(ForStmt),
 
-    // interface ForInStatement {
-    //     type: 'ForInStatement';
-    //     left: Expression;
-    //     right: Expression;
-    //     body: Statement;
-    //     each: false; // TODO this must be constant false
-    // }
     #[serde(rename="ForInStatement")]
-    ForIn{left: Expr, right: Expr, body: Box<Stmt>, each: bool},
+    ForIn(ForInStmt),
 
-    // interface ForOfStatement {
-    //     type: 'ForOfStatement';
-    //     left: Expression;
-    //     right: Expression;
-    //     body: Statement;
-    // }
     #[serde(rename="ForOfStatement")]
-    ForOf{left: Expr, right: Expr, body: Box<Stmt>},
+    ForOf(ForOfStmt),
 
     #[serde(rename="FunctionDeclaration")]
     Function(FunctionDecl),
 
-    // interface IfStatement {
-    //     type: 'IfStatement';
-    //     test: Expression;
-    //     consequent: Statement;
-    //     alternate?: Statement;
-    // }
     #[serde(rename="IfStatement")]
-    If{test: Expr,
-       consequent: Box<Stmt>,
-       alternate: Option<Box<Stmt>>},
+    If(IfStmt),
 
-    //  interface LabeledStatement {
-    //     type: 'LabeledStatement';
-    //     label: Identifier;
-    //     body: Statement;
-    // }
     #[serde(rename="LabeledStatement")]
-    Labled{
-         #[serde(serialize_with="ident_as_obj")]
-         label: Identifier,
-         body: Box<Stmt>},
+    Labled(LabledStmt),
 
-    // interface ReturnStatement {
-    //  type: 'ReturnStatement';
-    //  argument: Expression | null;
-    // }
     #[serde(rename="ReturnStatement")]
-    Return{argument:Option<Expr>},
+    Return(ReturnStmt),
 
-    // interface SwitchStatement {
-    //     type: 'SwitchStatement';
-    //     discriminant: Expression;
-    //     cases: SwitchCase[];
-    // }
     #[serde(rename="SwitchStatement")]
-    Switch{discriminant: Expr, cases: Vec<SwitchCase>},
+    Switch(SwitchStmt),
 
-    // interface ThrowStatement {
-    //     type: 'ThrowStatement';
-    //     argument: Expression;
-    // }
     #[serde(rename="ThrowStatement")]
-    Throw{argument: Expr},
+    Throw(ThrowStmt),
 
-    // interface TryStatement {
-    //     type: 'TryStatement';
-    //     block: BlockStatement;
-    //     handler: CatchClause | null;
-    //     finalizer: BlockStatement | null;
-    // }
     #[serde(rename="TryStatement")]
-    Try{block: BlockStmt,
-        handler: Option<CatchClause>,
-        #[serde(serialize_with="blockstmt_as_opt_obj")]
-        finalizer: Option<BlockStmt>},
+    Try(TryStmt),
 
     #[serde(rename="VariableDeclaration")]
     VarDecl(VariableDecl),
 
-    // interface WhileStatement {
-    //     type: 'WhileStatement';
-    //     test: Expression;
-    //     body: Statement;
-    // }
     #[serde(rename="WhileStatement")]
-    While{test: Expr, body: Box<Stmt>},
+    While(WhileStmt),
 
-    // interface WithStatement {
-    //     type: 'WithStatement';
-    //     object: Expression;
-    //     body: Statement;
-    // }
     #[serde(rename="WithStatement")]
-    With{object: Expr, body: Box<Stmt>}
+    With(WithStmt),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct BlockStmt {
+    pub body: Vec<StmtListItem>
+}
+
+// type StatementListItem = Declaration | Statement;
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum StmtListItem {
+    Decl(Decl),
+    Stmt(Stmt),
+}
+
+pub fn blockstmt_as_obj<S>(block: &BlockStmt, s: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+    let mut state = s.serialize_struct("BlockStmt", 2)?;
+    state.serialize_field("type", "BlockStatement")?;
+    state.serialize_field("body", &block.body)?;
+    state.end()
+}
+
+make_serialize_as_opt_func!(blockstmt_as_obj, BlockStmt, blockstmt_as_opt_obj);
+
+
+// interface BreakStatement {
+//     type: 'BreakStatement';
+//     label: Identifier | null;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct BreakStmt {
+    #[serde(serialize_with="ident_as_opt_obj")]
+    pub label: Option<Identifier>
+}
+
+// interface ContinueStatement {
+//     type: 'ContinueStatement';
+//     label: Identifier | null;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ContinueStmt {
+    #[serde(serialize_with="ident_as_opt_obj")]
+    pub label: Option<Identifier>
+}
+
+// interface DoWhileStatement {
+//     type: 'DoWhileStatement';
+//     body: Statement;
+//     test: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct DoWhileStmt {
+    pub body: Box<Stmt>,
+    pub test: Expr
+}
+
+// interface ExpressionStatement {
+//     type: 'ExpressionStatement';
+//     expression: Expression;
+//     directive?: string;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ExprStmt {
+    expression: Expr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    directive: Option<String>
+}
+
+// interface ForStatement {
+//     type: 'ForStatement';
+//     init: Expression | VariableDeclaration | null;
+//     test: Expression | null;
+//     update: Expression | null;
+//     body: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ForStmt {
+    pub init: Option<FotStmtInit>,
+    pub test: Option<Expr>,
+    pub update: Option<Expr>,
+    pub body: Box<Stmt>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -191,6 +174,79 @@ pub enum FotStmtInit {
     Expr(Expr),
     #[serde(serialize_with="variabledecl_as_obj")]
     VarDecl(VariableDecl),
+}
+
+// interface ForInStatement {
+//     type: 'ForInStatement';
+//     left: Expression;
+//     right: Expression;
+//     body: Statement;
+//     each: false; // TODO this must be constant false
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ForInStmt {
+    pub left: Expr,
+    pub right: Expr,
+    pub body: Box<Stmt>,
+    pub each: bool
+}
+
+// interface ForOfStatement {
+//     type: 'ForOfStatement';
+//     left: Expression;
+//     right: Expression;
+//     body: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ForOfStmt {
+    pub left: Expr,
+    pub right: Expr,
+    pub body: Box<Stmt>
+}
+
+// interface IfStatement {
+//     type: 'IfStatement';
+//     test: Expression;
+//     consequent: Statement;
+//     alternate?: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct IfStmt {
+    pub test: Expr,
+    pub consequent: Box<Stmt>,
+    pub alternate: Option<Box<Stmt>>
+}
+
+//  interface LabeledStatement {
+//     type: 'LabeledStatement';
+//     label: Identifier;
+//     body: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct LabledStmt {
+    #[serde(serialize_with="ident_as_obj")]
+    pub label: Identifier,
+    pub body: Box<Stmt>
+}
+
+// interface ReturnStatement {
+//  type: 'ReturnStatement';
+//  argument: Expression | null;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ReturnStmt {
+    pub argument: Option<Expr>
+}
+
+// interface SwitchStatement {
+//     type: 'SwitchStatement';
+//     discriminant: Expression;
+//     cases: SwitchCase[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct SwitchStmt {
+    discriminant: Expr,
+    cases: Vec<SwitchCase>
 }
 
 // interface SwitchCase {
@@ -218,28 +274,50 @@ pub struct CatchClause {
     pub body: BlockStmt,
 }
 
+// interface ThrowStatement {
+//     type: 'ThrowStatement';
+//     argument: Expression;
+// }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct BlockStmt {
-    pub body: Vec<StmtListItem>
+pub struct ThrowStmt {
+    pub argument: Expr
 }
 
-// type StatementListItem = Declaration | Statement;
+// interface TryStatement {
+//     type: 'TryStatement';
+//     block: BlockStatement;
+//     handler: CatchClause | null;
+//     finalizer: BlockStatement | null;
+// }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
-pub enum StmtListItem {
-    Decl(Decl),
-    Stmt(Stmt),
+pub struct TryStmt {
+    pub block: BlockStmt,
+    pub handler: Option<CatchClause>,
+    #[serde(serialize_with="blockstmt_as_opt_obj")]
+    pub finalizer: Option<BlockStmt>
 }
 
-pub fn blockstmt_as_obj<S>(block: &BlockStmt, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    let mut state = s.serialize_struct("BlockStmt", 2)?;
-    state.serialize_field("type", "BlockStatement")?;
-    state.serialize_field("body", &block.body)?;
-    state.end()
+// interface WhileStatement {
+//     type: 'WhileStatement';
+//     test: Expression;
+//     body: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct WhileStmt {
+    pub test: Expr,
+    pub body: Box<Stmt>
 }
 
-make_serialize_as_opt_func!(blockstmt_as_obj, BlockStmt, blockstmt_as_opt_obj);
+// interface WithStatement {
+//     type: 'WithStatement';
+//     object: Expression;
+//     body: Statement;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct WithStmt {
+    pub object: Expr,
+    pub body: Box<Stmt>
+}
 
 
 #[test]
@@ -250,9 +328,9 @@ fn test_stmt_se_de() {
 
     // Single instruction block stmt
     check_se_de(Stmt::Block(BlockStmt{body: vec![
-                    StmtListItem::Stmt(Stmt::Return{
+                    StmtListItem::Stmt(Stmt::Return(ReturnStmt{
                         argument: Some(Expr::Ident(Identifier{name: "a".into()}))
-                    })
+                    }))
                 ]}),
                 json!({
                         "type": "BlockStatement",
@@ -268,11 +346,11 @@ fn test_stmt_se_de() {
                     }));
 
     // Break stmt without label
-    check_se_de(Stmt::Break{label: None},
+    check_se_de(Stmt::Break(BreakStmt{label: None}),
                 json!({"type": "BreakStatement", "label": serde_json::Value::Null}));
 
     // Break stmt with label
-    check_se_de(Stmt::Break{label: Some(Identifier{name: "lbl".into()})},
+    check_se_de(Stmt::Break(BreakStmt{label: Some(Identifier{name: "lbl".into()})}),
                 json!({
                         "type": "BreakStatement",
                         "label": {
@@ -282,11 +360,11 @@ fn test_stmt_se_de() {
                     }));
 
     // Continue stmt without label
-    check_se_de(Stmt::Continue{label: None},
+    check_se_de(Stmt::Continue(ContinueStmt{label: None}),
                 json!({"type": "ContinueStatement", "label": serde_json::Value::Null}));
 
     // Continue stmt with label
-    check_se_de(Stmt::Continue{label: Some(Identifier{name: "lbl".into()})},
+    check_se_de(Stmt::Continue(ContinueStmt{label: Some(Identifier{name: "lbl".into()})}),
                 json!({
                         "type": "ContinueStatement",
                         "label": {
@@ -296,20 +374,20 @@ fn test_stmt_se_de() {
                     }));
 
     // DoWhile stmt and expression stmt
-    check_se_de(Stmt::DoWhile{body: Box::new(Stmt::Block(BlockStmt{body:vec![
-                                    StmtListItem::Stmt(Stmt::Expr{
-                                            expression: Expr::Update{
+    check_se_de(Stmt::DoWhile(DoWhileStmt{body: Box::new(Stmt::Block(BlockStmt{body:vec![
+                                    StmtListItem::Stmt(Stmt::Expr(ExprStmt{
+                                            expression: Expr::Update(UpdateExpr{
                                                 operator: UpdateOp::Dec,
                                                 argument: Box::new(Expr::Ident(
                                                             Identifier{name: "a".into()})
                                                             ),
                                                 prefix: false
-                                            },
+                                            }),
                                             directive: None,
-                                        })
+                                        }))
                                 ]})),
-                              test: Expr::Ident(Identifier{name: "a".into()})
-                },
+                              test: Expr::Ident(Identifier::new("a"))
+                }),
                 json!({
                     "type": "DoWhileStatement",
                     "body": {
@@ -335,22 +413,22 @@ fn test_stmt_se_de() {
                     }
         }));
 
-    check_se_de(Stmt::If{
-                    test: Expr::Unary{
+    check_se_de(Stmt::If(IfStmt{
+                    test: Expr::Unary(UnaryExpr{
                         operator: UnaryOp::Not,
                         argument: Box::new(Expr::Ident(Id::new("l2"))),
                         prefix: true,
-                    },
-                    consequent: Box::new(Stmt::Return{
-                        argument: Some(Expr::Call{
+                    }),
+                    consequent: Box::new(Stmt::Return(ReturnStmt{
+                        argument: Some(Expr::Call(CallExpr{
                             callee: CallExprCallee::Expr(Box::new(Expr::Ident(Id::new("a")))),
                             arguments: vec![
                                 ArgumentListElement::Expr(Box::new(Expr::Ident(Id::new("p"))))
                             ]
-                        })
-                    }),
+                        }))
+                    })),
                     alternate: None
-                },
+                }),
                 json!({
                       "type": "IfStatement",
                       "test": {

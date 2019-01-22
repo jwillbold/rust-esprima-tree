@@ -27,19 +27,11 @@ pub enum Expr {
     #[serde(rename="Literal")]
     Literal(Literal),
 
-    // interface ArrayExpression {
-    //     type: 'ArrayExpression';
-    //     elements: ArrayExpressionElement[];
-    // }
     #[serde(rename="ArrayExpression")]
-    Array{elements: Vec<ArrayExprElement>},
+    Array(ArrayExpr),
 
-    // interface ObjectExpression {
-    //     type: 'ObjectExpression';
-    //     properties: Property[];
-    // }
     #[serde(rename="ObjectExpression")]
-    Object{properties: Vec<Property>},
+    Object(ObjectExpr),
 
     #[serde(rename="FunctionExpression")]
     Function(FunctionExpr),
@@ -54,167 +46,48 @@ pub enum Expr {
     #[serde(rename="TaggedTemplateExpression")]
     TaggedTemplate(TaggedTemplateExpr),
 
-    // interface MemberExpression {
-    //     type: 'MemberExpression';
-    //     computed: boolean;
-    //     object: Expression;
-    //     property: Expression;
-    // }
     #[serde(rename="MemberExpression")]
-    Member{
-        computed: bool,
-        object: Box<Expr>,
-        property: Box<Expr>
-    },
+    Member(MemberExpr),
 
     Super,
 
-    // TODO test
-    // interface MetaProperty {
-    //     type: 'MetaProperty';
-    //     meta: Identifier;
-    //     property: Identifier;
-    // }
     #[serde(rename="MetaProperty")]
-    MetaProperty{
-        meta: Identifier,
-        property: Identifier
-    },
+    MetaProperty(MetaProperty),
 
-    // interface NewExpression {
-    //     type: 'NewExpression';
-    //     callee: Expression;
-    //     arguments: ArgumentListElement[];
-    // }
     #[serde(rename="NewExpression")]
-    New{
-        callee: Box<Expr>,
-        arguments: Vec<ArgumentListElement>,
-    },
+    New(NewExpr),
 
-    // interface CallExpression {
-    //     type: 'CallExpression';
-    //     callee: Expression | Import;
-    //     arguments: ArgumentListElement[];
-    // }
     #[serde(rename="CallExpression")]
-    Call{
-        callee: CallExprCallee,
-        arguments: Vec<ArgumentListElement>
-    },
+    Call(CallExpr),
 
-    // interface UpdateExpression {
-    //     type: 'UpdateExpression';
-    //     operator: '++' | '--';
-    //     argument: Expression;
-    //     prefix: boolean;
-    // }
     #[serde(rename="UpdateExpression")]
-    Update{
-        operator: UpdateOp,
-        argument: Box<Expr>,
-        prefix: bool
-    },
+    Update(UpdateExpr),
 
      // TODO test
-    // interface AwaitExpression {
-    //     type: 'AwaitExpression';
-    //     argument: Expression;
-    // }
     #[serde(rename="AwaitExpression")]
-    Await{
-        argument: Box<Expr>
-    },
+    Await(AwaitExpr),
 
-    // interface UnaryExpression {
-    //     type: 'UnaryExpression';
-    //     operator: '+' | '-' | '~' | '!' | 'delete' | 'void' | 'typeof';
-    //     argument: Expression;
-    //     prefix: true;
-    // }
     #[serde(rename="UnaryExpression")]
-    Unary{
-        operator: UnaryOp,
-        argument: Box<Expr>,
-        // TODO: true
-        prefix: bool
-    },
+    Unary(UnaryExpr),
 
-    // interface BinaryExpression {
-    //     type: 'BinaryExpression';
-    //     operator: 'instanceof' | 'in' | '+' | '-' | '*' | '/' | '%' | '**' |
-    //         '|' | '^' | '&' | '==' | '!=' | '===' | '!==' |
-    //         '<' | '>' | '<=' | '<<' | '>>' | '>>>';
-    //     left: Expression;
-    //     right: Expression;
-    // }
     #[serde(rename="BinaryExpression")]
-    Binary{
-        operator: BinaryOp,
-        left: Box<Expr>,
-        right: Box<Expr>
-    },
+    Binary(BinaryExpr),
 
-    // interface LogicalExpression {
-    //     type: 'LogicalExpression';
-    //     operator: '||' | '&&';
-    //     left: Expression;
-    //     right: Expression;
-    // }
     #[serde(rename="LogicalExpression")]
-    Logical{
-        operator: LogicalOp,
-        left: Box<Expr>,
-        right: Box<Expr>
-    },
+    Logical(LogicalExpr),
 
-    // interface ConditionalExpression {
-    //     type: 'ConditionalExpression';
-    //     test: Expression;
-    //     consequent: Expression;
-    //     alternate: Expression;
-    // }
     #[serde(rename="ConditionalExpression")]
-    Conditional{
-        test: Box<Expr>,
-        consequent: Box<Expr>,
-        alternate: Box<Expr>
-    },
+    Conditional(ConditionalExpr),
 
     // TODO test
-    // interface YieldExpression {
-    //     type: 'YieldExpression';
-    //     argument: Expression | null;
-    //     delegate: boolean;
-    // }
     #[serde(rename="YieldExpression")]
-    Yield {
-        argument: Option<Box<Expr>>,
-        delegate: bool,
-    },
+    Yield(YieldExpr),
 
-    // interface AssignmentExpression {
-    //     type: 'AssignmentExpression';
-    //     operator: '=' | '*=' | '**=' | '/=' | '%=' | '+=' | '-=' |
-    //         '<<=' | '>>=' | '>>>=' | '&=' | '^=' | '|=';
-    //     left: Expression;
-    //     right: Expression;
-    // }
     #[serde(rename="AssignmentExpression")]
-    Assignment{
-        operator: AssignmentOp,
-        left: Box<Expr>,
-        right: Box<Expr>
-    },
+    Assignment(AssignmentExpr),
 
-    // interface SequenceExpression {
-    //     type: 'SequenceExpression';
-    //     expressions: Expression[];
-    // }
     #[serde(rename="SequenceExpression")]
-    Sequence{
-        expressions: Vec<Expr>
-    }
+    Sequence(SequenceExpr)
 }
 
 
@@ -319,6 +192,16 @@ pub struct LiteralRegex {
     pub flags: String,
 }
 
+// interface ArrayExpression {
+//     type: 'ArrayExpression';
+//     elements: ArrayExpressionElement[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+// #[serde(tag="type")]
+pub struct ArrayExpr {
+    pub elements: Vec<ArrayExprElement>
+}
+
 // type ArrayExpressionElement = Expression | SpreadElement;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(untagged)]
@@ -326,6 +209,16 @@ pub enum ArrayExprElement {
     Expr(Expr),
     Spread(SpreadElement)
 }
+
+// interface ObjectExpression {
+//     type: 'ObjectExpression';
+//     properties: Property[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ObjectExpr {
+    pub properties: Vec<Property>
+}
+
 
 // interface Property {
 //     type: 'Property';
@@ -508,15 +401,40 @@ pub struct TemplateLiteral {
     pub expressions: Vec<Expr>
 }
 
+// interface MemberExpression {
+//     type: 'MemberExpression';
+//     computed: boolean;
+//     object: Expression;
+//     property: Expression;
+// }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
-pub enum CallExprCallee {
-    Expr(Box<Expr>),
+pub struct MemberExpr {
+    pub computed: bool,
+    pub object: Box<Expr>,
+    pub property: Box<Expr>
+}
 
-    // interface Import {
-    //     type: 'Import';
-    // }
-    Import,
+// TODO test
+// interface MetaProperty {
+//     type: 'MetaProperty';
+//     meta: Identifier;
+//     property: Identifier;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct MetaProperty {
+    pub meta: Identifier,
+    pub property: Identifier
+}
+
+// interface NewExpression {
+//     type: 'NewExpression';
+//     callee: Expression;
+//     arguments: ArgumentListElement[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct NewExpr {
+    pub callee: Box<Expr>,
+    pub arguments: Vec<ArgumentListElement>,
 }
 
 // type ArgumentListElement = Expression | SpreadElement;
@@ -537,6 +455,139 @@ pub struct SpreadElement {
     pub argument: Box<Expr>
 }
 
+// interface CallExpression {
+//     type: 'CallExpression';
+//     callee: Expression | Import;
+//     arguments: ArgumentListElement[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct CallExpr {
+    pub callee: CallExprCallee,
+    pub arguments: Vec<ArgumentListElement>
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum CallExprCallee {
+    Expr(Box<Expr>),
+
+    // TODO
+    // interface Import {
+    //     type: 'Import';
+    // }
+    Import,
+}
+
+// interface UpdateExpression {
+//     type: 'UpdateExpression';
+//     operator: '++' | '--';
+//     argument: Expression;
+//     prefix: boolean;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct UpdateExpr {
+    pub operator: UpdateOp,
+    pub argument: Box<Expr>,
+    pub prefix: bool
+}
+
+// interface AwaitExpression {
+//     type: 'AwaitExpression';
+//     argument: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct AwaitExpr {
+    pub argument: Box<Expr>
+}
+
+// interface UnaryExpression {
+//     type: 'UnaryExpression';
+//     operator: '+' | '-' | '~' | '!' | 'delete' | 'void' | 'typeof';
+//     argument: Expression;
+//     prefix: true;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct UnaryExpr {
+    pub operator: UnaryOp,
+    pub argument: Box<Expr>,
+    // TODO: true
+    pub prefix: bool
+}
+
+// interface BinaryExpression {
+//     type: 'BinaryExpression';
+//     operator: 'instanceof' | 'in' | '+' | '-' | '*' | '/' | '%' | '**' |
+//         '|' | '^' | '&' | '==' | '!=' | '===' | '!==' |
+//         '<' | '>' | '<=' | '<<' | '>>' | '>>>';
+//     left: Expression;
+//     right: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct BinaryExpr {
+    pub operator: BinaryOp,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>
+}
+
+// interface LogicalExpression {
+//     type: 'LogicalExpression';
+//     operator: '||' | '&&';
+//     left: Expression;
+//     right: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct LogicalExpr {
+    pub operator: LogicalOp,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>
+}
+
+// interface ConditionalExpression {
+//     type: 'ConditionalExpression';
+//     test: Expression;
+//     consequent: Expression;
+//     alternate: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ConditionalExpr {
+    pub test: Box<Expr>,
+    pub consequent: Box<Expr>,
+    pub alternate: Box<Expr>
+}
+
+// interface YieldExpression {
+//     type: 'YieldExpression';
+//     argument: Expression | null;
+//     delegate: boolean;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct YieldExpr {
+    pub argument: Option<Box<Expr>>,
+    pub delegate: bool,
+}
+
+// interface AssignmentExpression {
+//     type: 'AssignmentExpression';
+//     operator: '=' | '*=' | '**=' | '/=' | '%=' | '+=' | '-=' |
+//         '<<=' | '>>=' | '>>>=' | '&=' | '^=' | '|=';
+//     left: Expression;
+//     right: Expression;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct AssignmentExpr {
+    pub operator: AssignmentOp,
+    pub left: Box<Expr>,
+    pub right: Box<Expr>
+}
+
+// interface SequenceExpression {
+//     type: 'SequenceExpression';
+//     expressions: Expression[];
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct SequenceExpr {
+    pub expressions: Vec<Expr>
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum UpdateOp {
@@ -693,41 +744,38 @@ fn test_expr_se_de() {
     //                     "raw": "/.*/g",
     //                     "regex": {"pattern": ".*", "flags": "g"}}));
 
-    check_se_de(Expr::Array{elements: vec![
-                        ArrayExprElement::Expr(
-                            Expr::Literal(
-                                Literal{value: LiteralKind::Num(0.0),
-                                                raw: "0".into(),
-                                                regex: None}
-                    ))]},
+    check_se_de(Expr::Array(ArrayExpr{elements: vec![
+                        ArrayExprElement::Expr(Expr::Literal(Lit::new_f(0.0)))
+                    ]}),
                 json!({"type": "ArrayExpression",
                         "elements": [ {
                                 "type": "Literal",
                                 "value": 0.0,
-                                "raw": "0"
+                                "raw": "0.0"
                             }]
                         }));
 
-    check_se_de(Expr::Object{properties: vec![Property{
-                                                    key: Expr::Ident(Identifier{
-                                                    name: "ArrowRight".into()}),
+    check_se_de(Expr::Object(ObjectExpr{properties: vec![Property{
+                                                    key: Expr::Ident(Id::new("ArrowRight")),
                                                     computed: false,
                                                     value: Some(Expr::This),
                                                     kind: PropertyKind::Init,
-                                                    shorthand: false}]},
-                json!({"type": "ObjectExpression", "properties": [
-                                                        {"type": "Property",
-                                                            "key": {
-                                                                "type": "Identifier",
-                                                                "name": "ArrowRight"
-                                                            },
-                                                            "computed": false,
-                                                            "value": {
-                                                                "type": "ThisExpression"
-                                                            },
-                                                            "kind": "init",
-                                                            "method": false,
-                                                            "shorthand": false}]}));
+                                                    shorthand: false}]}),
+                json!({"type": "ObjectExpression",
+                        "properties": [
+                        {
+                            "type": "Property",
+                            "key": {
+                                "type": "Identifier",
+                                "name": "ArrowRight"
+                            },
+                            "computed": false,
+                            "value": {
+                                "type": "ThisExpression"
+                            },
+                            "kind": "init",
+                            "method": false,
+                            "shorthand": false}]}));
 
     check_se_de(Expr::Function(FunctionExpr{id: None,
                                              params: vec![],
@@ -748,26 +796,19 @@ fn test_expr_se_de() {
                     }));
 
     // Arrow function expression
-    check_se_de(
-        Stmt::Expr{expression: Expr::ArrowFunc(ArrowFuncExpr{
+    check_se_de(Expr::ArrowFunc(ArrowFuncExpr{
                 id: None,
-                params: vec![
-                    FunctionParam::Ident(Identifier{name: "a".into()})
-                ],
-                body: ArrowFuncExprBody::Expr(Box::new(Expr::Update{
+                params: vec![ FunctionParam::Ident(Id::new("a")) ],
+                body: ArrowFuncExprBody::Expr(Box::new(Expr::Update(UpdateExpr{
                     operator: UpdateOp::Inc,
-                    argument: Box::new(Expr::Ident(Identifier{name: "a".into()})),
+                    argument: Box::new(Expr::Ident(Id::new("a"))),
                     prefix: false,
-                })),
+                }))),
                 generator: false,
                 async: false,
                 expression: true,
             }),
-            directive: None
-        },
         json!({
-            "type": "ExpressionStatement",
-            "expression": {
                 "type": "ArrowFunctionExpression",
                 "id": null,
                 "params": [
@@ -788,8 +829,7 @@ fn test_expr_se_de() {
                 "generator": false,
                 "expression": true,
                 "async": false
-            }
-        }));
+            }));
 
     check_se_de(Expr::Class(ClassExpr{
             id: None,
@@ -848,9 +888,9 @@ fn test_expr_se_de() {
             }
         }));
 
-    check_se_de(Expr::Member{computed: false,
+    check_se_de(Expr::Member(MemberExpr{computed: false,
                                         object: Box::new(Expr::This),
-                                        property: Box::new(Expr::Ident(Identifier{name: "snake".into()}))},
+                                        property: Box::new(Expr::Ident(Id::new("snake")))}),
                 json!({"type": "MemberExpression",
                             "computed": false,
                             "object": {
@@ -861,19 +901,19 @@ fn test_expr_se_de() {
                                 "name": "snake"
                             }}));
 
-    check_se_de(Expr::New{callee: Box::new(Expr::This), arguments: vec![]},
+    check_se_de(Expr::New(NewExpr{callee: Box::new(Expr::This), arguments: vec![]}),
                 json!({"type": "NewExpression",
                         "callee": {"type": "ThisExpression"},
                         "arguments": []}));
 
-    check_se_de(Expr::Call{
+    check_se_de(Expr::Call(CallExpr{
             callee: CallExprCallee::Expr(Box::new(Expr::Ident(Id::new("a")))),
             arguments: vec![
                 ArgumentListElement::Expr(Box::new(Expr::Ident(Id::new("x")))),
                 ArgumentListElement::Spread(SpreadElement{
                     argument: Box::new(Expr::Ident(Id::new("_")))
                 })
-            ]},
+            ]}),
                 json!({
                 "type": "CallExpression",
                 "callee": {
@@ -895,19 +935,19 @@ fn test_expr_se_de() {
                 ]
             }));
 
-    check_se_de(Expr::Update{operator: UpdateOp::Inc,
+    check_se_de(Expr::Update(UpdateExpr{operator: UpdateOp::Inc,
                                         argument: Box::new(Expr::This),
-                                        prefix: false},
+                                        prefix: false}),
                 json!({"type": "UpdateExpression",
                         "operator": "++",
                         "argument": {"type": "ThisExpression"},
                         "prefix": false}));
 
-    check_se_de(Expr::Unary{
+    check_se_de(Expr::Unary(UnaryExpr{
             operator: UnaryOp::Delete,
             argument: Box::new(Expr::Ident(Id::new("x"))),
             prefix: true,
-        },json!({
+        }),json!({
             "type": "UnaryExpression",
             "operator": "delete",
             "argument": {
@@ -917,11 +957,11 @@ fn test_expr_se_de() {
             "prefix": true
         }));
 
-    check_se_de(Expr::Binary{
+    check_se_de(Expr::Binary(BinaryExpr{
             operator: BinaryOp::And,
             left: Box::new(Expr::Ident(Id::new("a"))),
             right: Box::new(Expr::Ident(Id::new("b"))),
-        },json!({
+        }),json!({
             "type": "BinaryExpression",
             "operator": "&",
             "left": {
@@ -934,11 +974,12 @@ fn test_expr_se_de() {
             }
         }));
 
-    check_se_de(Expr::Logical{
-            operator: LogicalOp::And,
-            left: Box::new(Expr::Ident(Id::new("a"))),
-            right: Box::new(Expr::Ident(Id::new("b"))),
-        },json!({
+    check_se_de(Expr::Logical(LogicalExpr{
+                operator: LogicalOp::And,
+                left: Box::new(Expr::Ident(Id::new("a"))),
+                right: Box::new(Expr::Ident(Id::new("b"))),
+            }),
+            json!({
             "type": "LogicalExpression",
             "operator": "&&",
             "left": {
@@ -952,11 +993,11 @@ fn test_expr_se_de() {
         }));
 
     // Conditional expression
-    check_se_de(Expr::Conditional{
+    check_se_de(Expr::Conditional(ConditionalExpr{
             test: Box::new(Expr::Ident(Id::new("a"))),
             consequent: Box::new(Expr::Literal(Lit::new_f(0.0))),
             alternate: Box::new(Expr::Literal(Lit::new_f(1.0)))
-        },
+        }),
         json!({
                 "type": "ConditionalExpression",
                 "test": {
@@ -976,7 +1017,7 @@ fn test_expr_se_de() {
         }));
 
     // Assignment expression
-    check_se_de(Expr::Assignment{
+    check_se_de(Expr::Assignment(AssignmentExpr{
             operator: AssignmentOp::Assign,
             left: Box::new(Expr::Ident(Identifier{name: "i".into()})),
             right: Box::new(Expr::Literal(Literal{
@@ -984,7 +1025,7 @@ fn test_expr_se_de() {
                 raw: "0".into(),
                 regex: None
             }))
-        },
+        }),
         json!({
                 "type": "AssignmentExpression",
                 "operator": "=",
@@ -1000,10 +1041,10 @@ fn test_expr_se_de() {
             }));
 
     // Sequence expression
-    check_se_de(Expr::Sequence{expressions: vec![
+    check_se_de(Expr::Sequence(SequenceExpr{expressions: vec![
             Expr::Ident(Identifier{name: "a".into()}),
             Expr::Ident(Identifier{name: "b".into()}),
-        ]},
+        ]}),
         json!({
                 "type": "SequenceExpression",
                 "expressions": [

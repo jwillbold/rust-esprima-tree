@@ -221,9 +221,9 @@ fn tetst_decl_se_de() {
                 FunctionParam::Ident(Identifier{name: "a".into()})
             ],
             body: BlockStmt{body: vec![
-                StmtListItem::Stmt(Stmt::Return{
+                StmtListItem::Stmt(Stmt::Return(ReturnStmt{
                     argument: Some(Expr::Ident(Identifier{name: "a".into()}))
-                })
+                }))
             ]},
             generator: false,
             expression: false,
