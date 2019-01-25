@@ -3,8 +3,7 @@ use serde::ser::{Serializer, SerializeStruct};
 use declerations::{Decl, ClassDecl, FunctionDecl};
 use patterns::{BindingPattern};
 use statements::{StmtListItem};
-use expressions::{Expr, Literal, literal_as_obj, literal_as_opt_obj, Identifier,
-                    ident_as_obj, ident_as_opt_obj};
+use expressions::{Expr, Literal, Identifier};
 #[cfg(test)]
 use helpers::{check_se_de};
 #[cfg(test)]
@@ -27,8 +26,11 @@ use patterns::*;
 //   sourceType: 'module';
 //   body: ModuleItem[];
 // }
+// #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[derive(Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct Program {
+    // #[serde(flatten)]
     pub body: ProgramType
 }
 
@@ -53,6 +55,15 @@ pub enum ProgramType {
     Module(Vec<ModuleItem>)
 }
 
+// #[derive(Serialize, Deserialize, PartialEq, Debug)]
+// #[serde(tag="sourceType", content="body")]
+// pub enum ProgramType {
+//     #[serde(rename="script")]
+//     Script(Vec<StmtListItem>),
+//     #[serde(rename="module")]
+//     Module(Vec<ModuleItem>)
+// }
+
 // type ModuleItem = ImportDeclaration | ExportDeclaration | StatementListItem;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(untagged)]
@@ -71,7 +82,6 @@ pub enum ModuleItem {
 #[serde(tag="type", rename="ImportDeclaration")]
 pub struct ImportDecl {
     pub specifiers: Vec<ImportSpecifier>,
-    #[serde(serialize_with="literal_as_obj")]
     pub source: Literal
 }
 
@@ -84,10 +94,8 @@ pub struct ImportDecl {
 pub struct ImportSpecifier {
     #[serde(rename="type")]
     pub ty: ImportSpecifierKind,
-    #[serde(serialize_with="ident_as_obj")]
     pub local: Identifier,
     #[serde(skip_serializing_if="Option::is_none")]
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub imported: Option<Identifier>
 }
 
@@ -108,10 +116,8 @@ pub enum ExportDecl {
     // }
     #[serde(rename="ExportAllDeclaration")]
     ExportAll{
-        #[serde(serialize_with="literal_as_obj")]
         source: Literal
     },
-
 
     // interface ExportDefaultDeclaration {
     //     type: 'ExportDefaultDeclaration';
@@ -122,7 +128,6 @@ pub enum ExportDecl {
         declaration: ExportDefaultDeclKind
     },
 
-
     // interface ExportNamedDeclaration {
     //     type: 'ExportNamedDeclaration';
     //     declaration: ClassDeclaration | FunctionDeclaration | VariableDeclaration;
@@ -132,19 +137,25 @@ pub enum ExportDecl {
     #[serde(rename="ExportNamedDeclaration")]
     ExportNamed{declaration: Decl,
                 specifiers: Vec<ExportSpecifier>,
-                #[serde(serialize_with="literal_as_opt_obj")]
                 source: Option<Literal>
     }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag="type")]
+// The tags defined below are not actually set or used, but
+// are required by serde to select the orrect enum variant
+// when desrializing, you could literally call them "a","b","c",...
 pub enum ExportDefaultDeclKind {
+    #[serde(rename="Identifier")]
     Ident(Identifier),
+    #[serde(rename="BindingPattern")]
     Binding(BindingPattern),
+    #[serde(rename="ClassDeclaration")]
     Class(ClassDecl),
-    // TODO this will produce a doubled type tag
+    #[serde(rename="Expression")]
     Expr(Expr),
+    #[serde(rename="FunctionDeclaration")]
     Function(FunctionDecl)
 }
 
@@ -156,9 +167,7 @@ pub enum ExportDefaultDeclKind {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag="type")]
 pub struct ExportSpecifier {
-    #[serde(serialize_with="ident_as_obj")]
     pub exported: Identifier,
-    #[serde(serialize_with="ident_as_obj")]
     pub local: Identifier
 }
 
@@ -415,4 +424,41 @@ fn test_progman_se_de() {
                 ],
                 "sourceType": "module"
             }));
+
+    check_se_de(Program{body: ProgramType::Module(vec![
+                    ModuleItem::Export(ExportDecl::ExportDefault{
+                        declaration: ExportDefaultDeclKind::Function(
+                            FunctionDecl{
+                                id: None,
+                                params: vec![],
+                                body: BlockStmt{body: vec![]},
+                                generator: false,
+                                expression: false,
+                                async: false
+                            }
+                        )
+                    })
+                ])},
+                json!(
+                    {
+                        "type": "Program",
+                        "body": [
+                            {
+                                "type": "ExportDefaultDeclaration",
+                                "declaration": {
+                                    "type": "FunctionDeclaration",
+                                    "id": null,
+                                    "params": [],
+                                    "body": {
+                                        "type": "BlockStatement",
+                                        "body": []
+                                    },
+                                    "generator": false,
+                                    "expression": false,
+                                    "async": false
+                                }
+                            }
+                        ],
+                        "sourceType": "module"
+                    }))
 }

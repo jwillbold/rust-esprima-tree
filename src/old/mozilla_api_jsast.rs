@@ -72,7 +72,7 @@ pub mod jsast {
         #[serde(rename="IfStatement")]
         If(IfStmt),
         #[serde(rename="LabeledStatement")]
-        Labled(LabledStmt),
+        Labled(LabeledStmt),
         #[serde(rename="BreakStatement")]
         Break(BreakStmt),
         #[serde(rename="ContinueStatement")]
@@ -134,7 +134,7 @@ pub mod jsast {
                             "test": {"type": "ThisExpression"},
                             "consequent": {"type": "EmptyStatement"},
                             "alternate": serde_json::Value::Null}));
-        check_se_de(Stmt::Labled(LabledStmt{label: "lbl".to_string(),
+        check_se_de(Stmt::Labled(LabeledStmt{label: "lbl".to_string(),
                                             body: Box::new(Stmt::Empty)}),
                     json!({"type": "LabeledStatement",
                             "label": "lbl",
@@ -242,7 +242,7 @@ pub mod jsast {
     //     body: Statement;
     // }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct LabledStmt {
+    struct LabeledStmt {
         label: Identifier,
         body: Box<Stmt>,
     }

@@ -1,5 +1,3 @@
-use serde::ser::{Serialize, Serializer};
-
 use patterns::{IdentOrPattern};
 use statements::*;
 use expressions::*;
@@ -8,6 +6,7 @@ use helpers::{check_se_de};
 
 // type Declaration = ClassDeclaration | FunctionDeclaration |  VariableDeclaration;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+// #[serde(untagged)]
 #[serde(tag="type")]
 pub enum Decl {
     #[serde(rename="ClassDeclaration")]
@@ -25,11 +24,10 @@ pub enum Decl {
 //     body: ClassBody;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ClassDeclaration")]
 pub struct ClassDecl {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     #[serde(rename="superClass")]
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub super_class: Option<Identifier>,
     pub body: ClassBody,
 }
@@ -57,7 +55,6 @@ pub struct ClassBody {
 pub struct MethodDef {
     pub key: Option<Expr>,
     pub computed: bool,
-    #[serde(serialize_with="funcexpr_as_opt_obj")]
     pub value: Option<FunctionExpr>,
     pub kind: MethodDefKind,
     #[serde(rename="static")]
@@ -82,11 +79,10 @@ pub enum MethodDefKind {
 //     expression: false;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="FunctionDeclaration")]
 pub struct FunctionDecl {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
-    #[serde(serialize_with="blockstmt_as_obj")]
     pub body: BlockStmt,
     pub generator: bool,
     pub async: bool,
@@ -117,25 +113,10 @@ impl FunctionDecl {
 //     kind: 'var' | 'const' | 'let';
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="VariableDeclaration")]
 pub struct VariableDecl {
     pub declarations: Vec<VariableDeclarator>,
     pub kind: VariableDeclKind,
-}
-
-pub fn variabledecl_as_obj<S>(decl: &VariableDecl, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-
-    #[derive(Serialize)]
-    #[serde(tag="type", rename="VariableDeclaration")]
-    struct VariableDeclShadow<'a> {
-        declarations: &'a Vec<VariableDeclarator>,
-        kind:  &'a VariableDeclKind,
-    }
-
-    VariableDeclShadow {
-        declarations: &decl.declarations,
-        kind: &decl.kind,
-    }.serialize(s)
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

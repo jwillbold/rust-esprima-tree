@@ -92,6 +92,7 @@ pub enum Expr {
 
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct Identifier {
     pub name: String
 }
@@ -104,17 +105,6 @@ impl Identifier {
     }
 }
 
-pub fn ident_as_obj<S>(ident: &Identifier, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    let mut state = s.serialize_struct("Identifier", 2)?;
-    state.serialize_field("type", "Identifier")?;
-    state.serialize_field("name", &ident.name)?;
-    state.end()
-}
-
-make_serialize_as_opt_func!(ident_as_obj, Identifier, ident_as_opt_obj);
-
-
 // interface Literal {
 //     type: 'Literal';
 //     value: boolean | number | string | RegExp | null;
@@ -122,6 +112,7 @@ make_serialize_as_opt_func!(ident_as_obj, Identifier, ident_as_opt_obj);
 //     regex?: { pattern: string, flags: string };
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct Literal {
     pub value: LiteralKind,
     pub raw: String,
@@ -150,27 +141,15 @@ impl Literal {
             regex: None,
         }
     }
-}
 
-pub fn literal_as_obj<S>(lit: &Literal, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    #[derive(Serialize)]
-    #[serde(tag="type", rename="Literal")]
-    struct PrivateLiteral<'a> {
-        pub value: &'a LiteralKind,
-        pub raw: &'a String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub regex: &'a Option<LiteralRegex>
+    pub fn new_int(i: i64) -> Self {
+        Literal {
+            value: LiteralKind::Int(i),
+            raw: i.to_string(),
+            regex: None
+        }
     }
-
-    PrivateLiteral {
-        value: &lit.value,
-        raw: &lit.raw,
-        regex: &lit.regex,
-    }.serialize(s)
 }
-
-make_serialize_as_opt_func!(literal_as_obj, Literal, literal_as_opt_obj);
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(untagged)]
@@ -197,7 +176,7 @@ pub struct LiteralRegex {
 //     elements: ArrayExpressionElement[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-// #[serde(tag="type")]
+#[serde(tag="type", rename="ArrayExpression")]
 pub struct ArrayExpr {
     pub elements: Vec<ArrayExprElement>
 }
@@ -215,10 +194,10 @@ pub enum ArrayExprElement {
 //     properties: Property[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ObjectExpression")]
 pub struct ObjectExpr {
     pub properties: Vec<Property>
 }
-
 
 // interface Property {
 //     type: 'Property';
@@ -273,45 +252,15 @@ pub enum PropertyKind {
 //     expression: boolean;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="FunctionExpression")]
 pub struct FunctionExpr {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
-    #[serde(serialize_with="blockstmt_as_obj")]
     pub body: BlockStmt,
     pub generator: bool,
     pub async: bool,
     pub expression: bool,
 }
-
-fn funcexpr_as_obj<S>(func: &FunctionExpr, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-
-    #[derive(Serialize)]
-    #[serde(tag="type", rename="FunctionExpression")]
-    struct FunctionExprShadow<'a> {
-        #[serde(serialize_with="ident_as_opt_obj")]
-        id: &'a Option<Identifier>,
-        params: &'a Vec<FunctionParam>,
-        #[serde(serialize_with="blockstmt_as_obj")]
-        body: &'a BlockStmt,
-        generator: &'a bool,
-        async: &'a bool,
-        expression: &'a bool,
-    }
-
-    FunctionExprShadow {
-        id: &func.id,
-        params: &func.params,
-        body: &func.body,
-        generator: &func.generator,
-        async: &func.async,
-        expression: &func.expression,
-    }.serialize(s)
-}
-
-make_serialize_as_opt_func!(funcexpr_as_obj, FunctionExpr, funcexpr_as_opt_obj);
-
 
 // type FunctionParameter = AssignmentPattern | Identifier | BindingPattern;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -335,8 +284,8 @@ pub enum FunctionParam {
 //     expression: false;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ArrowFunctionExpression")]
 pub struct ArrowFuncExpr {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub id: Option<Identifier>,
     pub params: Vec<FunctionParam>,
     pub body: ArrowFuncExprBody,
@@ -348,7 +297,6 @@ pub struct ArrowFuncExpr {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(untagged)]
 pub enum ArrowFuncExprBody {
-    #[serde(serialize_with="blockstmt_as_obj")]
     Block(BlockStmt),
     Expr(Box<Expr>)
 }
@@ -359,7 +307,14 @@ pub enum ArrowFuncExprBody {
 //     superClass: Identifier | null;
 //     body: ClassBody;
 // }
-type ClassExpr = ClassDecl;
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ClassExpression")]
+pub struct ClassExpr {
+    pub id: Option<Identifier>,
+    #[serde(rename="superClass")]
+    pub super_class: Option<Identifier>,
+    pub body: ClassBody
+}
 
 // interface TaggedTemplateExpression {
 //     type: 'TaggedTemplateExpression';
@@ -367,6 +322,7 @@ type ClassExpr = ClassDecl;
 //     readonly quasi: TemplateLiteral;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="TaggedTemplateExpression")]
 pub struct TaggedTemplateExpr {
     pub tag: Box<Expr>,
     pub quasi: TemplateLiteral
@@ -408,6 +364,7 @@ pub struct TemplateLiteral {
 //     property: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="MemberExpression")]
 pub struct MemberExpr {
     pub computed: bool,
     pub object: Box<Expr>,
@@ -421,6 +378,7 @@ pub struct MemberExpr {
 //     property: Identifier;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct MetaProperty {
     pub meta: Identifier,
     pub property: Identifier
@@ -432,6 +390,7 @@ pub struct MetaProperty {
 //     arguments: ArgumentListElement[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="NewExpression")]
 pub struct NewExpr {
     pub callee: Box<Expr>,
     pub arguments: Vec<ArgumentListElement>,
@@ -461,6 +420,7 @@ pub struct SpreadElement {
 //     arguments: ArgumentListElement[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="CallExpression")]
 pub struct CallExpr {
     pub callee: CallExprCallee,
     pub arguments: Vec<ArgumentListElement>
@@ -485,6 +445,7 @@ pub enum CallExprCallee {
 //     prefix: boolean;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="UpdateExpression")]
 pub struct UpdateExpr {
     pub operator: UpdateOp,
     pub argument: Box<Expr>,
@@ -496,6 +457,7 @@ pub struct UpdateExpr {
 //     argument: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="AwaitExpression")]
 pub struct AwaitExpr {
     pub argument: Box<Expr>
 }
@@ -507,6 +469,7 @@ pub struct AwaitExpr {
 //     prefix: true;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="UnaryExpression")]
 pub struct UnaryExpr {
     pub operator: UnaryOp,
     pub argument: Box<Expr>,
@@ -523,6 +486,7 @@ pub struct UnaryExpr {
 //     right: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="BinaryExpression")]
 pub struct BinaryExpr {
     pub operator: BinaryOp,
     pub left: Box<Expr>,
@@ -536,6 +500,7 @@ pub struct BinaryExpr {
 //     right: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="LogicalExpression")]
 pub struct LogicalExpr {
     pub operator: LogicalOp,
     pub left: Box<Expr>,
@@ -549,6 +514,7 @@ pub struct LogicalExpr {
 //     alternate: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ConditionalExpression")]
 pub struct ConditionalExpr {
     pub test: Box<Expr>,
     pub consequent: Box<Expr>,
@@ -561,6 +527,7 @@ pub struct ConditionalExpr {
 //     delegate: boolean;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="YieldExpression")]
 pub struct YieldExpr {
     pub argument: Option<Box<Expr>>,
     pub delegate: bool,
@@ -574,6 +541,7 @@ pub struct YieldExpr {
 //     right: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="AssignmentExpression")]
 pub struct AssignmentExpr {
     pub operator: AssignmentOp,
     pub left: Box<Expr>,
@@ -585,6 +553,7 @@ pub struct AssignmentExpr {
 //     expressions: Expression[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="SequenceExpression")]
 pub struct SequenceExpr {
     pub expressions: Vec<Expr>
 }
@@ -720,11 +689,11 @@ fn test_expr_se_de() {
     check_se_de(Expr::Literal(Lit{value: LiteralKind::Num(1.0), raw: "1.0".into(), regex: None}),
                 json!({"type": "Literal", "value": 1.0, "raw": "1.0"}));
 
-    let int_lit_json = json!({"value": 2, "raw": "2"});
+    let int_lit_json = json!({"type": "Literal", "value": 2, "raw": "2"});
     let int_lit = serde_json::from_value::<Literal>(int_lit_json.clone()).unwrap();
     assert_eq!(serde_json::to_value(int_lit).unwrap(), int_lit_json);
 
-    let float_lit_json = json!({"value": 2.0, "raw": "2.0"});
+    let float_lit_json = json!({"type": "Literal", "value": 2.0, "raw": "2.0"});
     let float_lit = serde_json::from_value::<Literal>(float_lit_json.clone()).unwrap();
     assert_eq!(serde_json::to_value(float_lit).unwrap(), float_lit_json);
 

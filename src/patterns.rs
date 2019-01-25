@@ -3,11 +3,27 @@ use expressions::*;
 use helpers::{check_se_de};
 
 
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
+pub enum Pattern {
+    #[serde(rename="AssignmentPattern")]
+    Assignment(AssignmentPattern),
+    #[serde(rename="Identifier")]
+    Ident(Identifier),
+    #[serde(rename="BindingPattern")]
+    Binding(BindingPattern),
+    #[serde(rename="RestElement")]
+    RestElement(RestElement),
+}
+
 // type BindingPattern = ArrayPattern | ObjectPattern;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(untagged)]
+// #[serde(untagged)]
+#[serde(tag="type")]
 pub enum BindingPattern {
+    #[serde(rename="ArrayPattern")]
     Array(ArrayPattern),
+    #[serde(rename="ObjectPattern")]
     Object(ObjectPattern)
 }
 
@@ -18,7 +34,22 @@ pub enum BindingPattern {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag="type")]
 pub struct ArrayPattern {
-    pub elements: Vec<ArrayPatternElement>
+    // type ArrayPatternElement = AssignmentPattern | Identifier | BindingPattern | RestElement | null;
+    // => type ArrayPatternElement = Pattern | null
+    pub elements: Vec<Option<Pattern>>
+}
+
+// The esprima doc of esprima seems to be off regarding this
+// Source: https://github.com/estree/estree/blob/master/es2015.md
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="Property")]
+pub struct AssignmentProperty {
+    pub key: Expr,
+    pub computed: bool,
+    pub value: Pattern,
+    pub kind: PropertyKind, // TODO constant PropertyKind::Init
+    pub method: bool, // TODO constant value: false
+    pub shorthand: bool
 }
 
 // interface ObjectPattern {
@@ -28,36 +59,17 @@ pub struct ArrayPattern {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag="type")]
 pub struct ObjectPattern {
-    pub properties: Vec<Property>,
-}
-
-// type ArrayPatternElement = AssignmentPattern | Identifier | BindingPattern | RestElement | null;
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag="type")]
-pub enum ArrayPatternElement {
-    #[serde(rename="AssignmentPattern")]
-    Assignment(AssignmentPattern),
-    #[serde(rename="Identifier")]
-    Ident(Identifier),
-    #[serde(rename="BindingPattern")]
-    Binding(BindingPattern),
-
-    // interface RestElement {
-    //     type: 'RestElement';
-    //     argument: Identifier | BindingPattern;
-    // }
-    #[serde(rename="RestElement")]
-    RestElement{argument: IdentOrPattern},
-    Null,
+    pub properties: Vec<AssignmentProperty>,
 }
 
 // Gets serialized as object
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(tag="type")]
+// #[serde(tag="type")]
+#[serde(untagged)]
 pub enum IdentOrPattern {
-    #[serde(rename="Identifier")]
+    // #[serde(rename="Identifier")]
     Ident(Identifier),
-    #[serde(rename="BindingPattern")]
+    // #[serde(rename="BindingPattern")]
     Pattern(Box<BindingPattern>)
 }
 
@@ -67,9 +79,20 @@ pub enum IdentOrPattern {
 //     right: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
 pub struct AssignmentPattern {
     pub left: IdentOrPattern,
     pub right: Expr
+}
+
+// interface RestElement {
+//     type: 'RestElement';
+//     argument: Identifier | BindingPattern;
+// }
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type")]
+pub struct RestElement {
+    argument: IdentOrPattern
 }
 
 #[test]
@@ -79,18 +102,23 @@ fn test_patterns_se_de() {
     // var {x, y} = {x: 0, y: 1};
     check_se_de(
         BindingPattern::Object(ObjectPattern{properties: vec![
-            Property{
+            AssignmentProperty{
                 key: Expr::Ident(Identifier{name: "x".into()}),
                 computed: false,
-                value: Some(Expr::Ident(Identifier{name: "x".into()})),
+                value: Pattern::Ident(Identifier{name: "x".into()}),
                 kind: PropertyKind::Init,
+                method: false,
                 shorthand: true
             },
-            Property{
-                key: Expr::Ident(Identifier{name: "y".into()}),
+            AssignmentProperty{
+                key: Expr::Ident(Identifier{name: "x".into()}),
                 computed: false,
-                value: Some(Expr::Ident(Identifier{name: "y".into()})),
+                value: Pattern::Assignment(AssignmentPattern{
+                    left: IdentOrPattern::Ident(Id::new("x")),
+                    right: Expr::Literal(Lit::new_int(3))
+                }),
                 kind: PropertyKind::Init,
+                method: false,
                 shorthand: true
             },
         ]}),
@@ -113,15 +141,24 @@ fn test_patterns_se_de() {
                         "shorthand": true
                     },
                     {
+                        // Assignment Property
                         "type": "Property",
                         "key": {
-                            "type": "Identifier",
-                            "name": "y"
+                        "type": "Identifier",
+                            "name": "x"
                         },
                         "computed": false,
                         "value": {
-                            "type": "Identifier",
-                            "name": "y"
+                            "type": "AssignmentPattern",
+                            "left": {
+                                "type": "Identifier",
+                                "name": "x"
+                            },
+                            "right": {
+                                "type": "Literal",
+                                "value": 3,
+                                "raw": "3"
+                            }
                         },
                         "kind": "init",
                         "method": false,
@@ -134,10 +171,10 @@ fn test_patterns_se_de() {
     // var [head, ...tail] = [1, 2, 3];
     check_se_de(
         BindingPattern::Array(ArrayPattern{elements: vec![
-            ArrayPatternElement::Ident(Identifier{name: "head".into()}),
-            ArrayPatternElement::RestElement{
+            Some(Pattern::Ident(Identifier{name: "head".into()})),
+            Some(Pattern::RestElement(RestElement{
                 argument: IdentOrPattern::Ident(Identifier{name: "tail".into()})
-            }
+            }))
         ]}),
         json!({
                 "type": "ArrayPattern",
@@ -156,41 +193,47 @@ fn test_patterns_se_de() {
                 ]
         }));
 
-    // TODO, the doc of esprima seems to be off
     // assignment pattern
     // var { x = 3 } = {};
-    // check_se_de(
-    //     Property{
-    //         key: Expr::Ident(Identifier{name: "x".into()}),
-    //         computed: false,
-    //         value: Some(Expr::)
-    //     },
-    //     json!(
-    //         {
-    //             "type": "Property",
-    //             "key": {
-    //                 "type": "Identifier",
-    //                 "name": "x"
-    //             },
-    //             "computed": false,
-    //             "value": {
-    //                 "type": "AssignmentPattern",
-    //                 "left": {
-    //                     "type": "Identifier",
-    //                     "name": "x"
-    //                 },
-    //                 "right": {
-    //                     "type": "Literal",
-    //                     "value": 3,
-    //                     "raw": "3"
-    //                 }
-    //             },
-    //             "kind": "init",
-    //             "method": false,
-    //             "shorthand": true
-    //         }
-    //     )
-    // );
+    check_se_de(
+        AssignmentProperty {
+            key: Expr::Ident(Id::new("x")),
+            computed: false,
+            value: Pattern::Assignment(AssignmentPattern{
+                left: IdentOrPattern::Ident(Id::new("x")),
+                right: Expr::Literal(Lit::new_int(3))
+            }),
+            kind: PropertyKind::Init,
+            method: false,
+            shorthand: true,
+        },
+        json!(
+            {
+                // Assignment Property
+                "type": "Property",
+                "key": {
+                    "type": "Identifier",
+                    "name": "x"
+                },
+                "computed": false,
+                "value": {
+                    "type": "AssignmentPattern",
+                    "left": {
+                        "type": "Identifier",
+                        "name": "x"
+                    },
+                    "right": {
+                        "type": "Literal",
+                        "value": 3,
+                        "raw": "3"
+                    }
+                },
+                "kind": "init",
+                "method": false,
+                "shorthand": true
+            }
+        )
+    );
 }
 
 

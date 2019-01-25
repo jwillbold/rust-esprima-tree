@@ -9,18 +9,6 @@ pub fn check_se_de<T>(t: T, json: serde_json::Value) where for<'de> T: serde::Se
 }
 
 
-macro_rules! make_serialize_as_opt_func {
-    ($serializer:ident, $t:ty, $name:ident) => {
-        pub fn $name<S>(opt: &Option<$t>, s: S) -> Result<S::Ok, S::Error>
-            where S: Serializer{
-            match opt {
-                Some(x) => $serializer(x, s),
-                None => s.serialize_none(),
-            }
-        }
-    }
-}
-
 // macro_rules! derive_private_shadow_struct {
 //     (pub struct $si:ident {
 //         $(pub $f:ident: $t:ty,)*
@@ -57,37 +45,3 @@ macro_rules! make_serialize_as_opt_func {
 //     },
 //     test_as_obj
 // }
-
-//
-// pub fn serialize_as_opt<T, S>(f: &'static &Fn(&T, S) -> Result<S::Ok, S::Error>)
-//     -> impl Fn(&Option<T>, S) -> Result<S::Ok, S::Error>
-//     where S: Serializer
-// {
-//     move |t: &Option<T>, s: S| -> Result<S::Ok, S::Error> {
-//         match t {
-//             Some(x) => f(x, s),
-//             None => s.serialize_none()
-//         }
-//     }
-// }
-
-// pub fn serialize_as_opt<T, S, F>(f: &'static F) -> impl Fn(&Option<T>, S) -> Result<S::Ok, S::Error>
-//     where S: Serializer, F: Fn(&T, S) -> Result<S::Ok, S::Error>
-// {
-//     move |t: &Option<T>, s: S| -> Result<S::Ok, S::Error> {
-//         match t {
-//             Some(x) => f(x, s),
-//             None => s.serialize_none()
-//         }
-//     }
-// }
-
-
-// pub fn serialize_as_opt<S>(ident: &Option<Identifier>, s: S) -> Result<S::Ok, S::Error>
-//     where S: Serializer{
-//     match ident {
-//         Some(x) => ident_as_obj(x, s),
-//         None => s.serialize_none(),
-//     }
-// }
-

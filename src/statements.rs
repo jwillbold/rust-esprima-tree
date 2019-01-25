@@ -62,7 +62,7 @@ pub enum Stmt {
     If(IfStmt),
 
     #[serde(rename="LabeledStatement")]
-    Labled(LabledStmt),
+    Labled(LabeledStmt),
 
     #[serde(rename="ReturnStatement")]
     Return(ReturnStmt),
@@ -87,6 +87,7 @@ pub enum Stmt {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="BlockStatement")]
 pub struct BlockStmt {
     pub body: Vec<StmtListItem>
 }
@@ -99,24 +100,13 @@ pub enum StmtListItem {
     Stmt(Stmt),
 }
 
-pub fn blockstmt_as_obj<S>(block: &BlockStmt, s: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-    let mut state = s.serialize_struct("BlockStmt", 2)?;
-    state.serialize_field("type", "BlockStatement")?;
-    state.serialize_field("body", &block.body)?;
-    state.end()
-}
-
-make_serialize_as_opt_func!(blockstmt_as_obj, BlockStmt, blockstmt_as_opt_obj);
-
-
 // interface BreakStatement {
 //     type: 'BreakStatement';
 //     label: Identifier | null;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="BreakStatement")]
 pub struct BreakStmt {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub label: Option<Identifier>
 }
 
@@ -125,8 +115,8 @@ pub struct BreakStmt {
 //     label: Identifier | null;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ContinueStatement")]
 pub struct ContinueStmt {
-    #[serde(serialize_with="ident_as_opt_obj")]
     pub label: Option<Identifier>
 }
 
@@ -136,6 +126,7 @@ pub struct ContinueStmt {
 //     test: Expression;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="DoWhileStatement")]
 pub struct DoWhileStmt {
     pub body: Box<Stmt>,
     pub test: Expr
@@ -147,6 +138,7 @@ pub struct DoWhileStmt {
 //     directive?: string;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ExpressionStatement")]
 pub struct ExprStmt {
     expression: Expr,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -161,6 +153,7 @@ pub struct ExprStmt {
 //     body: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ForStatement")]
 pub struct ForStmt {
     pub init: Option<FotStmtInit>,
     pub test: Option<Expr>,
@@ -172,7 +165,6 @@ pub struct ForStmt {
 #[serde(untagged)]
 pub enum FotStmtInit {
     Expr(Expr),
-    #[serde(serialize_with="variabledecl_as_obj")]
     VarDecl(VariableDecl),
 }
 
@@ -184,6 +176,7 @@ pub enum FotStmtInit {
 //     each: false; // TODO this must be constant false
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ForInStatement")]
 pub struct ForInStmt {
     pub left: Expr,
     pub right: Expr,
@@ -198,6 +191,7 @@ pub struct ForInStmt {
 //     body: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ForOfStatement")]
 pub struct ForOfStmt {
     pub left: Expr,
     pub right: Expr,
@@ -211,6 +205,7 @@ pub struct ForOfStmt {
 //     alternate?: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="IfStatement")]
 pub struct IfStmt {
     pub test: Expr,
     pub consequent: Box<Stmt>,
@@ -223,8 +218,8 @@ pub struct IfStmt {
 //     body: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct LabledStmt {
-    #[serde(serialize_with="ident_as_obj")]
+#[serde(tag="type", rename="LabeledStatement")]
+pub struct LabeledStmt {
     pub label: Identifier,
     pub body: Box<Stmt>
 }
@@ -234,6 +229,7 @@ pub struct LabledStmt {
 //  argument: Expression | null;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="ReturnStatement")]
 pub struct ReturnStmt {
     pub argument: Option<Expr>
 }
@@ -244,6 +240,7 @@ pub struct ReturnStmt {
 //     cases: SwitchCase[];
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="SwitchStatement")]
 pub struct SwitchStmt {
     discriminant: Expr,
     cases: Vec<SwitchCase>
@@ -270,7 +267,6 @@ pub struct SwitchCase {
 #[serde(tag="type")]
 pub struct CatchClause {
     pub param: IdentOrPattern,
-    #[serde(serialize_with="blockstmt_as_obj")]
     pub body: BlockStmt,
 }
 
@@ -290,10 +286,10 @@ pub struct ThrowStmt {
 //     finalizer: BlockStatement | null;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="TryStatement")]
 pub struct TryStmt {
     pub block: BlockStmt,
     pub handler: Option<CatchClause>,
-    #[serde(serialize_with="blockstmt_as_opt_obj")]
     pub finalizer: Option<BlockStmt>
 }
 
@@ -303,6 +299,7 @@ pub struct TryStmt {
 //     body: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="WhileStatement")]
 pub struct WhileStmt {
     pub test: Expr,
     pub body: Box<Stmt>
@@ -314,6 +311,7 @@ pub struct WhileStmt {
 //     body: Statement;
 // }
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(tag="type", rename="WithStatement")]
 pub struct WithStmt {
     pub object: Expr,
     pub body: Box<Stmt>
